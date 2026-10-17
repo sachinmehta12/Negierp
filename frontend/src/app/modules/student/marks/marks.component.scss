@@ -1,0 +1,22 @@
+@use '../../../../styles.scss' as *;
+
+
+
+.grade-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.8125rem;
+  text-align: center;
+  min-width: 36px;
+  background: #f1f5f9;
+  color: #475569;
+
+  &[data-grade="A+"], &[data-grade="A"] { background: #dcfce7; color: #15803d; }
+  &[data-grade="B+"], &[data-grade="B"] { background: #e0f2fe; color: #0369a1; }
+  &[data-grade="C"] { background: #fef9c3; color: #854d0e; }
+  &[data-grade="D"] { background: #ffedd5; color: #9a3412; }
+  &[data-grade="F"] { background: #fee2e2; color: #b91c1c; }
+  &[data-grade="Ab"] { background: #f3e8ff; color: #7e22ce; }
+}

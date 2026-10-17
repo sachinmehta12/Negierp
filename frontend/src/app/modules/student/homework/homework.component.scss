@@ -1,0 +1,86 @@
+@use '../../../../styles.scss' as *;
+
+.homework-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.homework-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  &.completed {
+    border-left-color: #10b981;
+    background: #fdfefe;
+  }
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.subject-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.due-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.hw-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.hw-desc {
+  font-size: 0.8125rem;
+  color: #475569;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  margin-bottom: 1.25rem;
+  flex-grow: 1;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.75rem;
+}
+
+.status-done {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #15803d;
+
+  &.late {
+    color: #b45309;
+  }
+}
+
+.status-pending {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #d97706;
+}

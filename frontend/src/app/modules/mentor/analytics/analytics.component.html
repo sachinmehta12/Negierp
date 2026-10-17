@@ -1,0 +1,98 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Institute Academic & Performance Analytics</h1>
+      <p class="page-subtitle">Batch-wise academic outcomes, subject mastery, and top performing student merit list</p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Analyzing institute performance records...</p>
+    </div>
+  } @else {
+    <!-- Class-wise Performance Cards -->
+    <div class="grid-3">
+      @for (cs of classStats(); track cs.class) {
+        <div class="class-stat-card">
+          <div class="card-top">
+            <span class="class-pill">Class {{ cs.class }}</span>
+            <span class="student-count">{{ cs.students }} Students</span>
+          </div>
+
+          <div class="metrics-row">
+            <div class="metric-block">
+              <span class="metric-label">Batch Exam Average</span>
+              <span class="metric-value text-indigo-700">{{ cs.avgScore }}%</span>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill indigo" [style.width.%]="cs.avgScore"></div>
+              </div>
+            </div>
+
+            <div class="metric-block">
+              <span class="metric-label">Attendance Rate</span>
+              <span class="metric-value text-emerald-700">{{ cs.attendanceRate }}%</span>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill emerald" [style.width.%]="cs.attendanceRate"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="analytics-split mt-6">
+      <!-- Subject Mastery Breakdown -->
+      <div class="section-card">
+        <h2 class="section-title">Curriculum Subject Performance</h2>
+        <p class="section-subtitle">Average score attained across all tests</p>
+
+        <div class="subjects-list mt-4">
+          @for (sub of subjectPerf(); track sub.name + sub.class) {
+            <div class="subject-row">
+              <div class="sub-info">
+                <span class="sub-name font-bold">{{ sub.name }}</span>
+                <span class="class-pill">Class {{ sub.class }}</span>
+              </div>
+              <div class="sub-bar-container">
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill blue" [style.width.%]="sub.avgScore"></div>
+                </div>
+                <span class="score-text">{{ sub.avgScore }}%</span>
+              </div>
+            </div>
+          } @empty {
+            <p class="text-slate-400 py-4 text-center">No subject test data recorded yet.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Top Performing Students Leaderboard -->
+      <div class="section-card">
+        <h2 class="section-title">⭐ Academic Leaderboard (Top 5)</h2>
+        <p class="section-subtitle">Consistently highest achieving scholars</p>
+
+        <div class="leaderboard mt-4">
+          @for (st of topStudents(); track st.id; let idx = $index) {
+            <div class="leader-item">
+              <div class="rank-badge" [attr.data-rank]="idx + 1">{{ idx + 1 }}</div>
+              <div class="leader-info">
+                <div class="leader-name font-bold text-slate-900">{{ st.fullName }}</div>
+                <div class="text-xs text-slate-500">
+                  {{ st.enrollmentNo }} • Class {{ st.targetClass }} ({{ st.examsCount }} tests)
+                </div>
+              </div>
+              <div class="leader-score">
+                <span class="score-num font-extrabold text-blue-800">{{ st.overallAvg }}%</span>
+                <span class="text-xs text-slate-400">Avg</span>
+              </div>
+            </div>
+          } @empty {
+            <p class="text-slate-400 py-4 text-center">No student exam marks recorded yet.</p>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,183 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Exams & Assessment Management</h1>
+      <p class="page-subtitle">Schedule unit tests, terminal exams, and record student marks</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openCreateExam()">
+        <span class="icon">+</span> Schedule New Exam
+      </button>
+    </div>
+  </div>
+
+  <!-- Class Filter Bar -->
+  <div class="filter-card">
+    <div class="filter-group">
+      <label>Filter by Class:</label>
+      <div class="btn-toggle-group">
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === null" (click)="selectedClassFilter.set(null); loadExams()">All Classes</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 10" (click)="selectedClassFilter.set(10); loadExams()">Class 10</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 11" (click)="selectedClassFilter.set(11); loadExams()">Class 11</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 12" (click)="selectedClassFilter.set(12); loadExams()">Class 12</button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading examinations...</p>
+    </div>
+  } @else {
+    <div class="section-card mt-6">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Exam Title</th>
+              <th>Type</th>
+              <th>Class & Subject</th>
+              <th>Date</th>
+              <th>Max / Pass Marks</th>
+              <th>Average / Highest</th>
+              <th>Status</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (exam of exams(); track exam.id) {
+              <tr>
+                <td>
+                  <div class="font-bold text-slate-900">{{ exam.title }}</div>
+                  @if (exam.description) {
+                    <div class="text-xs text-slate-500">{{ exam.description }}</div>
+                  }
+                </td>
+                <td><span class="badge badge-info">{{ exam.examType }}</span></td>
+                <td>
+                  <div><span class="class-pill">Class {{ exam.targetClass }}</span></div>
+                  <div class="text-xs font-semibold text-slate-600 mt-1">{{ exam.subject?.name }}</div>
+                </td>
+                <td>{{ exam.examDate | date:'mediumDate' }}</td>
+                <td>
+                  <span class="font-bold text-slate-800">{{ exam.maxMarks }}</span>
+                  <span class="text-xs text-slate-400"> (Pass: {{ exam.passingMarks }})</span>
+                </td>
+                <td>
+                  <div class="text-xs">
+                    Avg: <strong class="text-slate-700">{{ exam.averageMarks }}</strong> | 
+                    Max: <strong class="text-emerald-700">{{ exam.highestMarks }}</strong>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge" [class.badge-success]="exam.isPublished" [class.badge-warning]="!exam.isPublished">
+                    {{ exam.isPublished ? 'Published' : 'Draft' }}
+                  </span>
+                </td>
+                <td class="text-right table-actions">
+                  <button class="btn btn-sm btn-primary" (click)="openMarksheet(exam)" title="Enter or edit student marks">
+                    📝 Marksheet
+                  </button>
+                  <button class="btn btn-sm btn-outline" (click)="openEditExam(exam)" title="Edit exam details">
+                    ✏️
+                  </button>
+                  <button class="btn btn-sm btn-outline danger" (click)="deleteExam(exam)" title="Delete exam">
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="text-center py-8 text-slate-400">
+                  No exams found. Click "+ Schedule New Exam" above.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Create / Edit Exam Modal -->
+<app-modal 
+  [isOpen]="isExamModalOpen()" 
+  [title]="editingExamId() ? 'Edit Examination' : 'Schedule New Examination'"
+  (closeModal)="isExamModalOpen.set(false)">
+  <form [formGroup]="examForm" (ngSubmit)="saveExam()" class="modal-form">
+    <div class="form-group">
+      <label class="form-label required">Exam Title</label>
+      <input type="text" formControlName="title" class="form-input" placeholder="e.g. Unit Test 1 - Mechanics" />
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Exam Type</label>
+        <select formControlName="examType" class="form-select">
+          <option value="Unit Test">Unit Test</option>
+          <option value="Mid-Term">Mid-Term</option>
+          <option value="Mock Test">Mock Test</option>
+          <option value="Final Board Exam">Final Board Exam</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Target Class</label>
+        <select formControlName="targetClass" class="form-select">
+          <option [ngValue]="10">Class 10</option>
+          <option [ngValue]="11">Class 11</option>
+          <option [ngValue]="12">Class 12</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Subject / Paper</label>
+        <select formControlName="subjectId" class="form-select">
+          @for (sub of subjects(); track sub.id) {
+            <option [ngValue]="sub.id">{{ sub.name }} (Class {{ sub.targetClass }})</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Exam Date</label>
+        <input type="date" formControlName="examDate" class="form-input" />
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Maximum Marks</label>
+        <input type="number" formControlName="maxMarks" class="form-input" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Passing Marks</label>
+        <input type="number" formControlName="passingMarks" class="form-input" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Syllabus / Guidelines</label>
+      <textarea formControlName="description" class="form-textarea" rows="2" placeholder="Chapters 1 to 4..."></textarea>
+    </div>
+
+    <div class="form-group checkbox-group">
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isPublished" />
+        <span>Publish Result to Student Portal</span>
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isExamModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="examForm.invalid">
+        {{ editingExamId() ? 'Update Exam' : 'Schedule Exam' }}
+      </button>
+    </div>
+  </form>
+</app-modal>

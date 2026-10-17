@@ -1,0 +1,275 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Streams & Subjects Management</h1>
+      <p class="page-subtitle">Configure academic streams, curriculum courses, and subject-wise fee allocations</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="openCreateStream()">
+        <span class="icon">+</span> Add Academic Stream
+      </button>
+      <button class="btn btn-primary" (click)="openCreateSubject()">
+        <span class="icon">+</span> Add New Subject
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading course configurations...</p>
+    </div>
+  } @else {
+    <!-- Streams Section -->
+    <div class="section-card">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Academic Streams</h2>
+          <p class="section-subtitle">High school specializations (Class 11 & 12)</p>
+        </div>
+      </div>
+
+      <div class="streams-grid">
+        @for (stream of streams(); track stream.id) {
+          <div class="stream-card" [class.inactive]="!stream.isActive">
+            <div class="stream-card-header">
+              <span class="stream-code-badge">{{ stream.code }}</span>
+              <span class="status-badge" [class.active]="stream.isActive" [class.inactive]="!stream.isActive">
+                {{ stream.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+            <h3 class="stream-name">{{ stream.name }}</h3>
+            <p class="stream-classes">Classes: <strong>{{ stream.applicableClasses }}</strong></p>
+            @if (stream.description) {
+              <p class="stream-desc">{{ stream.description }}</p>
+            }
+            <div class="card-actions">
+              <button class="btn-text" (click)="openEditStream(stream)">Edit</button>
+              <button class="btn-text danger" (click)="deleteStream(stream)">Delete</button>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-state">No streams configured yet. Click "+ Add Academic Stream" above.</div>
+        }
+      </div>
+    </div>
+
+    <!-- Subjects Section -->
+    <div class="section-card mt-6">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Curriculum Subjects</h2>
+          <p class="section-subtitle">Individual fee-bearing courses across all grades</p>
+        </div>
+        <div class="filter-group">
+          <label>Filter by Class:</label>
+          <div class="btn-toggle-group">
+            <button 
+              class="toggle-btn" 
+              [class.active]="selectedClassFilter === null" 
+              (click)="selectedClassFilter = null; loadData()">
+              All
+            </button>
+            <button 
+              class="toggle-btn" 
+              [class.active]="selectedClassFilter === 10" 
+              (click)="selectedClassFilter = 10; loadData()">
+              Class 10
+            </button>
+            <button 
+              class="toggle-btn" 
+              [class.active]="selectedClassFilter === 11" 
+              (click)="selectedClassFilter = 11; loadData()">
+              Class 11
+            </button>
+            <button 
+              class="toggle-btn" 
+              [class.active]="selectedClassFilter === 12" 
+              (click)="selectedClassFilter = 12; loadData()">
+              Class 12
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Subject Name</th>
+              <th>Code</th>
+              <th>Target Class</th>
+              <th>Assigned Stream</th>
+              <th>Monthly Fee</th>
+              <th>Status</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (sub of subjects(); track sub.id) {
+              <tr>
+                <td>
+                  <div class="font-medium text-slate-900">{{ sub.name }}</div>
+                  @if (sub.description) {
+                    <div class="text-xs text-slate-500">{{ sub.description }}</div>
+                  }
+                </td>
+                <td><span class="code-tag">{{ sub.code }}</span></td>
+                <td><span class="class-pill">Class {{ sub.targetClass }}</span></td>
+                <td>
+                  @if (sub.stream) {
+                    <span class="stream-pill">{{ sub.stream.name }} ({{ sub.stream.code }})</span>
+                  } @else {
+                    <span class="text-xs text-slate-400">Foundation (General)</span>
+                  }
+                </td>
+                <td><span class="fee-badge">₹{{ sub.monthlyFee }} / mo</span></td>
+                <td>
+                  <span class="status-dot" [class.active]="sub.isActive">
+                    {{ sub.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <button class="btn-action edit" (click)="openEditSubject(sub)" title="Edit Subject">
+                    ✏️
+                  </button>
+                  <button class="btn-action delete" (click)="deleteSubject(sub)" title="Delete Subject">
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="text-center py-8 text-slate-400">
+                  No subjects found for the selected filter.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Stream Modal -->
+<app-modal 
+  [isOpen]="isStreamModalOpen()" 
+  [title]="editingStreamId() ? 'Edit Academic Stream' : 'Create Academic Stream'"
+  (closeModal)="isStreamModalOpen.set(false)">
+  <form [formGroup]="streamForm" (ngSubmit)="saveStream()" class="modal-form">
+    <div class="form-group">
+      <label class="form-label required">Stream Name</label>
+      <input type="text" formControlName="name" class="form-input" placeholder="e.g. Science (PCM)" />
+      @if (streamForm.get('name')?.touched && streamForm.get('name')?.invalid) {
+        <span class="form-error">Stream name is required</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Stream Code</label>
+      <input type="text" formControlName="code" class="form-input" placeholder="e.g. PCM, PCB, COMM" />
+      @if (streamForm.get('code')?.touched && streamForm.get('code')?.invalid) {
+        <span class="form-error">Stream code is required</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Applicable Classes</label>
+      <input type="text" formControlName="applicableClasses" class="form-input" placeholder="e.g. 11,12" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Description / Remarks</label>
+      <textarea formControlName="description" class="form-textarea" rows="2" placeholder="Brief outline of syllabus covered..."></textarea>
+    </div>
+
+    <div class="form-group checkbox-group">
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isActive" />
+        <span>Active & Available for Student Admission</span>
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isStreamModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="streamForm.invalid">
+        {{ editingStreamId() ? 'Update Stream' : 'Save Stream' }}
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- Subject Modal -->
+<app-modal 
+  [isOpen]="isSubjectModalOpen()" 
+  [title]="editingSubjectId() ? 'Edit Curriculum Subject' : 'Add New Subject'"
+  (closeModal)="isSubjectModalOpen.set(false)">
+  <form [formGroup]="subjectForm" (ngSubmit)="saveSubject()" class="modal-form">
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Subject Name</label>
+        <input type="text" formControlName="name" class="form-input" placeholder="e.g. Physics, Mathematics" />
+        @if (subjectForm.get('name')?.touched && subjectForm.get('name')?.invalid) {
+          <span class="form-error">Subject name is required</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Subject Code</label>
+        <input type="text" formControlName="code" class="form-input" placeholder="e.g. PHY-11, MATH-10" />
+        @if (subjectForm.get('code')?.touched && subjectForm.get('code')?.invalid) {
+          <span class="form-error">Subject code is required</span>
+        }
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Target Class</label>
+        <select formControlName="targetClass" class="form-select">
+          <option [ngValue]="10">Class 10</option>
+          <option [ngValue]="11">Class 11</option>
+          <option [ngValue]="12">Class 12</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Academic Stream (Class 11 & 12)</label>
+        <select formControlName="streamId" class="form-select">
+          <option [ngValue]="0">None / General Foundation</option>
+          @for (str of streams(); track str.id) {
+            <option [ngValue]="str.id">{{ str.name }} ({{ str.code }})</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Monthly Tuition Fee (₹)</label>
+      <input type="number" formControlName="monthlyFee" class="form-input" placeholder="e.g. 1500" />
+      @if (subjectForm.get('monthlyFee')?.touched && subjectForm.get('monthlyFee')?.invalid) {
+        <span class="form-error">Valid positive fee required</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Syllabus Overview / Notes</label>
+      <textarea formControlName="description" class="form-textarea" rows="2" placeholder="Topics covered, textbook edition, etc."></textarea>
+    </div>
+
+    <div class="form-group checkbox-group">
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isActive" />
+        <span>Subject is Active & Open for Enrollment</span>
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isSubjectModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="subjectForm.invalid">
+        {{ editingSubjectId() ? 'Update Subject' : 'Add Subject' }}
+      </button>
+    </div>
+  </form>
+</app-modal>

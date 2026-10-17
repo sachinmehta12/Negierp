@@ -1,0 +1,149 @@
+.mentor-scope-banner {
+  background: linear-gradient(135deg, #061325 0%, #0a192f 100%);
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-xl);
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  color: #ffffff;
+}
+
+.scope-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.scope-details {
+  flex: 1;
+}
+
+.scope-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffd15c;
+  letter-spacing: -0.01em;
+  margin-bottom: 3px;
+}
+
+.scope-desc {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
+.scope-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scope-chip {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fef08a;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+
+  strong {
+    color: #fbbf24;
+  }
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 28px;
+  flex-wrap: wrap;
+}
+
+.search-group {
+  flex: 1;
+  min-width: 300px;
+  margin-bottom: 0;
+}
+
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+
+  select {
+    width: auto;
+    min-width: 160px;
+    min-height: 44px;
+
+    &.select-subject {
+      min-width: 210px;
+      border-color: rgba(245, 158, 11, 0.4);
+      background-color: #fffdf5;
+      font-weight: 600;
+    }
+  }
+}
+
+.subject-chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 260px;
+}
+
+.subject-badge-pill {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.enrollment-link {
+  font-weight: 800;
+  color: var(--primary);
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+.student-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.student-email {
+  font-size: 0.825rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.action-buttons {
+  display: inline-flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.loading-state, .empty-state {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}

@@ -1,0 +1,52 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">My Teaching Subjects & Batches</h1>
+      <p class="page-subtitle">Assigned curriculum courses, enrolled students, and classroom registers</p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading assigned subjects...</p>
+    </div>
+  } @else {
+    <div class="subjects-grid mt-6">
+      @for (sub of subjects(); track sub.id) {
+        <div class="subject-card">
+          <div class="card-top">
+            <span class="code-pill">{{ sub.code }}</span>
+            <span class="class-pill">Class {{ sub.targetClass }}</span>
+          </div>
+
+          <h2 class="sub-name">{{ sub.name }}</h2>
+          <div class="sub-stream">
+            Stream: <strong>{{ sub.stream?.name || 'General / Foundation' }}</strong>
+          </div>
+
+          <div class="fee-info">
+            Tuition Allocation: <span class="font-bold text-emerald-700">₹{{ sub.monthlyFee }} / month</span>
+          </div>
+
+          @if (sub.description) {
+            <p class="sub-desc">{{ sub.description }}</p>
+          }
+
+          <div class="card-actions">
+            <button class="btn btn-sm btn-outline" (click)="goToAttendance()">
+              📋 Attendance
+            </button>
+            <button class="btn btn-sm btn-primary" (click)="goToExams()">
+              📝 Tests & Marks
+            </button>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p>No subjects currently assigned to your faculty profile.</p>
+        </div>
+      }
+    </div>
+  }
+</div>

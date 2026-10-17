@@ -1,0 +1,170 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Tuition Fee Ledger & Receipts</h1>
+      <p class="page-subtitle">Track assessed annual fees, verified payments, and submit online payment vouchers</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openPaymentModal()">
+        💳 Submit Online Payment
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading fee account ledger...</p>
+    </div>
+  } @else {
+    <!-- Financial Ledger Summary Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Total Assessed Annual Fee</span>
+        <span class="stat-value text-slate-800">
+          ₹{{ (feeStructure()?.totalAnnualFee ?? 0).toLocaleString('en-IN') }}
+        </span>
+        @if (feeStructure()?.discountAmount) {
+          <span class="stat-hint text-rose-600">
+            Includes ₹{{ feeStructure()?.discountAmount?.toLocaleString('en-IN') }} scholarship concession
+          </span>
+        }
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Net Payable Fee</span>
+        <span class="stat-value text-slate-900">
+          ₹{{ (feeStructure()?.finalFee ?? 0).toLocaleString('en-IN') }}
+        </span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Verified Paid Revenue</span>
+        <span class="stat-value text-emerald-600">
+          ₹{{ (feeStructure()?.paidAmount ?? 0).toLocaleString('en-IN') }}
+        </span>
+      </div>
+
+      <div class="stat-card highlight">
+        <span class="stat-label">Outstanding Balance Due</span>
+        <span class="stat-value text-rose-600 font-extrabold">
+          ₹{{ (feeStructure()?.dueAmount ?? 0).toLocaleString('en-IN') }}
+        </span>
+        <span class="stat-hint">
+          Status: <strong>{{ feeStructure()?.status || 'Active' }}</strong>
+        </span>
+      </div>
+    </div>
+
+    <!-- Payment Transactions Table -->
+    <div class="section-card mt-6">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Payment Transaction History</h2>
+          <p class="section-subtitle">Record of all payments submitted and verified</p>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Receipt / Voucher No</th>
+              <th>Payment Date</th>
+              <th>Amount</th>
+              <th>Mode</th>
+              <th>Transaction / UTR Ref</th>
+              <th>Verification Status</th>
+              <th class="text-right">Official Receipt</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of payments(); track p.id) {
+              <tr>
+                <td><span class="font-mono font-bold">{{ p.receiptNo }}</span></td>
+                <td>{{ p.paymentDate | date:'mediumDate' }}</td>
+                <td><span class="font-bold text-emerald-700">₹{{ p.amount.toLocaleString('en-IN') }}</span></td>
+                <td><span class="mode-pill">{{ p.paymentMode }}</span></td>
+                <td>
+                  <span class="font-mono text-xs">{{ p.referenceNo || 'Cash Receipt' }}</span>
+                  @if (p.remarks) {
+                    <div class="text-xs text-slate-400">{{ p.remarks }}</div>
+                  }
+                </td>
+                <td>
+                  <span class="badge" [class.badge-success]="p.isVerified" [class.badge-warning]="!p.isVerified">
+                    {{ p.isVerified ? '✓ Cleared & Verified' : '⏳ Awaiting Mentor Approval' }}
+                  </span>
+                </td>
+                <td class="text-right">
+                  <button 
+                    class="btn btn-sm" 
+                    [class.btn-outline]="p.isVerified" 
+                    [class.btn-disabled]="!p.isVerified"
+                    (click)="viewReceipt(p)">
+                    {{ p.isVerified ? '🖨️ View & Print' : '🔒 Locked' }}
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="text-center py-8 text-slate-400">
+                  No fee payment records submitted yet. Click "Submit Online Payment" above.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Submit Payment Modal -->
+<app-modal 
+  [isOpen]="isPaymentModalOpen()" 
+  title="Submit Tuition Fee Payment"
+  (closeModal)="isPaymentModalOpen.set(false)">
+  <form [formGroup]="paymentForm" (ngSubmit)="submitPayment()" class="modal-form">
+    <div class="alert-info-box">
+      ℹ️ Submit your payment details after transferring via UPI or Net Banking. Once verified by an institute mentor, the amount will be credited to your balance ledger and your official receipt will unlock.
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Payment Amount (₹)</label>
+        <input type="number" formControlName="amount" class="form-input" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Payment Mode</label>
+        <select formControlName="paymentMode" class="form-select">
+          <option value="UPI">UPI (Google Pay / PhonePe / Paytm)</option>
+          <option value="Net Banking">Net Banking / NEFT / IMPS</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Cash">Cash (Handed in Office)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Transaction Reference ID / UTR / Cheque No.</label>
+      <input type="text" formControlName="referenceNo" class="form-input" placeholder="e.g. 402918239019 or UPI Ref No." />
+      @if (paymentForm.get('referenceNo')?.touched && paymentForm.get('referenceNo')?.invalid) {
+        <span class="form-error">Reference ID is required for verification</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes / Remarks</label>
+      <input type="text" formControlName="remarks" class="form-input" placeholder="e.g. Monthly tuition installment" />
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isPaymentModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="paymentForm.invalid || isSubmitting()">
+        {{ isSubmitting() ? 'Submitting...' : 'Submit Payment Voucher' }}
+      </button>
+    </div>
+  </form>
+</app-modal>

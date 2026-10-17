@@ -1,0 +1,375 @@
+@if (isLoading()) {
+  <div class="loading-state">Loading student profile...</div>
+} @else if (student(); as st) {
+  <div class="page-container">
+    <!-- Profile Banner Header -->
+    <div class="profile-banner card">
+      <div class="banner-left">
+        <div class="banner-avatar">
+          {{ st.firstName[0] }}{{ st.lastName[0] }}
+        </div>
+        <div class="banner-info">
+          <div class="banner-title">
+            <h2>{{ st.firstName }} {{ st.lastName }}</h2>
+            <span class="badge" [ngClass]="st.user?.isActive ? 'badge-success' : 'badge-neutral'">
+              {{ st.user?.isActive ? 'Active Student' : 'Archived' }}
+            </span>
+          </div>
+          <div class="banner-meta">
+            <span class="enrollment-code">ID: {{ st.enrollmentNo }}</span> •
+            <span class="badge badge-primary">Class {{ st.targetClass }}</span> •
+            <span>{{ st.stream ? st.stream.name : 'General Curriculum' }}</span> •
+            <span>Enrolled: {{ st.admissionDate | date:'mediumDate' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="banner-actions">
+        <a [routerLink]="['/mentor/students', st.id, 'edit']" class="btn btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          Edit Profile
+        </a>
+        <button type="button" class="btn btn-secondary" (click)="toggleActive()">
+          {{ st.user?.isActive ? 'Archive Account' : 'Activate Account' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Metrics Row -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon info">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        </div>
+        <div>
+          <div class="stat-value">{{ attendancePercentage() }}%</div>
+          <div class="stat-label">Attendance Percentage</div>
+          <div class="stat-sub">{{ st.attendanceRecords?.length || 0 }} Total Classes Tracked</div>
+        </div>
+      </div>
+
+      @if (st.feeStructures && st.feeStructures.length > 0) {
+        @let fs = st.feeStructures[0];
+        <div class="stat-card">
+          <div class="stat-icon warning">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          </div>
+          <div>
+            <div class="stat-value">₹{{ fs.dueAmount | number }}</div>
+            <div class="stat-label">Fee Outstanding Due</div>
+            <div class="stat-sub">Paid: ₹{{ fs.paidAmount | number }} / Total: ₹{{ fs.finalFee | number }}</div>
+          </div>
+        </div>
+      }
+
+      <div class="stat-card">
+        <div class="stat-icon primary">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        </div>
+        <div>
+          <div class="stat-value">{{ st.subjectEnrollments?.length || 0 }}</div>
+          <div class="stat-label">Enrolled Coaching Subjects</div>
+          <div class="stat-sub">{{ st.isSubjectLocked ? 'Subject choices locked' : 'Unlocked for selection' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 Column Details -->
+    <div class="detail-grid">
+      <!-- Left: Personal, Guardian & Subjects -->
+      <div class="detail-col">
+        <!-- Personal & Guardian Info -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Student & Guardian Particulars</div>
+          </div>
+          <div class="info-list">
+            <div class="info-item">
+              <span class="info-label">Email:</span>
+              <span class="info-val">{{ st.user?.email }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Contact Number:</span>
+              <span class="info-val">{{ st.contactNumber || 'N/A' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Gender / DOB:</span>
+              <span class="info-val">{{ st.gender || 'Not specified' }} • {{ st.dob ? (st.dob | date:'mediumDate') : 'DOB not set' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Parent / Guardian:</span>
+              <span class="info-val">{{ st.parentName || 'N/A' }} ({{ st.parentContact || 'No contact' }})</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Parent Email:</span>
+              <span class="info-val">{{ st.parentEmail || 'N/A' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Residential Address:</span>
+              <span class="info-val">{{ st.address || 'N/A' }}</span>
+            </div>
+            @if (st.notes) {
+              <div class="info-item">
+                <span class="info-label">Administrative Notes:</span>
+                <span class="info-val text-muted">{{ st.notes }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Coaching Subjects -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Coaching Subjects</div>
+            <button type="button" class="btn btn-sm btn-primary" (click)="openSubjectModal()">
+              Manage Subjects
+            </button>
+          </div>
+
+          @if (!st.subjectEnrollments || st.subjectEnrollments.length === 0) {
+            <div class="empty-state">No active subject enrollments assigned.</div>
+          } @else {
+            <div class="subjects-list">
+              @for (se of st.subjectEnrollments; track se.id) {
+                <div class="subject-card-item">
+                  <div class="subj-badge">{{ se.subject?.code }}</div>
+                  <div class="subj-info">
+                    <div class="subj-name">{{ se.subject?.name }}</div>
+                    <div class="subj-fee">₹{{ se.subject?.monthlyFee }}/month</div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Right: Fee Structures & Exam Marks -->
+      <div class="detail-col">
+        <!-- Fees & Receipts Section -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Fee Account & Payments</div>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn btn-sm btn-primary" (click)="openPaymentModal()">
+                + Record Payment
+              </button>
+              <button type="button" class="btn btn-sm btn-secondary" (click)="openFeeAdjustModal()">
+                Adjust Structure
+              </button>
+            </div>
+          </div>
+
+          @if (st.feeStructures && st.feeStructures.length > 0) {
+            @let fs = st.feeStructures[0];
+            <div class="fee-summary-box">
+              <div class="fs-metric">
+                <span class="fs-lbl">Annual Fee</span>
+                <span class="fs-val">₹{{ fs.totalAnnualFee | number }}</span>
+              </div>
+              <div class="fs-metric">
+                <span class="fs-lbl">Discount</span>
+                <span class="fs-val text-success">-₹{{ fs.discountAmount | number }}</span>
+              </div>
+              <div class="fs-metric">
+                <span class="fs-lbl">Final Fee</span>
+                <span class="fs-val">₹{{ fs.finalFee | number }}</span>
+              </div>
+              <div class="fs-metric">
+                <span class="fs-lbl">Due Balance</span>
+                <span class="fs-val text-warning">₹{{ fs.dueAmount | number }}</span>
+              </div>
+            </div>
+          }
+
+          <h4 style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; margin: 16px 0 8px; color: var(--text-muted);">
+            Payment Receipts History
+          </h4>
+
+          @if (!st.feePayments || st.feePayments.length === 0) {
+            <div class="empty-state" style="padding: 16px;">No payments recorded yet.</div>
+          } @else {
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Receipt No</th>
+                    <th>Date</th>
+                    <th>Mode</th>
+                    <th>Amount</th>
+                    <th>Receipt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of st.feePayments; track p.id) {
+                    <tr>
+                      <td><strong>#{{ p.receiptNo }}</strong></td>
+                      <td>{{ p.paymentDate | date:'mediumDate' }}</td>
+                      <td>{{ p.paymentMode }}</td>
+                      <td><strong>₹{{ p.amount | number }}</strong></td>
+                      <td>
+                        <a [routerLink]="['/mentor/fees/receipt', p.id]" class="btn btn-sm btn-secondary">
+                          Print
+                        </a>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+
+        <!-- Academic Exam Marks -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Academic Examination Records</div>
+          </div>
+
+          @if (!st.examMarks || st.examMarks.length === 0) {
+            <div class="empty-state">No examination marks logged for this student.</div>
+          } @else {
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Exam</th>
+                    <th>Subject</th>
+                    <th>Score</th>
+                    <th>Grade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of st.examMarks; track m.id) {
+                    <tr>
+                      <td>
+                        <strong>{{ m.exam?.title }}</strong>
+                        <div class="text-muted" style="font-size: 0.72rem;">{{ m.exam?.examDate | date:'mediumDate' }}</div>
+                      </td>
+                      <td>{{ m.exam?.subject?.name }}</td>
+                      <td>
+                        @if (m.isAbsent) {
+                          <span class="badge badge-danger">Absent</span>
+                        } @else {
+                          <strong>{{ m.marksObtained }} / {{ m.exam?.maxMarks }}</strong>
+                        }
+                      </td>
+                      <td>
+                        <span class="badge" [ngClass]="{
+                          'badge-success': m.grade === 'A+' || m.grade === 'A',
+                          'badge-primary': m.grade === 'B+' || m.grade === 'B',
+                          'badge-warning': m.grade === 'C' || m.grade === 'D',
+                          'badge-danger': m.grade === 'F' || m.grade === 'Ab'
+                        }">{{ m.grade || 'N/A' }}</span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Assign Subjects -->
+  <app-modal [isOpen]="isSubjectModalOpen()" [title]="'Assign Coaching Subjects'" (close)="isSubjectModalOpen.set(false)">
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+      Select the subjects {{ st.firstName }} is enrolled in for Class {{ st.targetClass }}:
+    </p>
+
+    <div class="subject-selection-list">
+      @for (subj of allClassSubjects(); track subj.id) {
+        <label class="subject-checkbox-item">
+          <input
+            type="checkbox"
+            [checked]="selectedSubjectIds.includes(subj.id)"
+            (change)="toggleSubjectSelection(subj.id)"
+          />
+          <div class="check-info">
+            <div class="check-title">{{ subj.name }} ({{ subj.code }})</div>
+            <div class="check-fee">₹{{ subj.monthlyFee }} / month</div>
+          </div>
+        </label>
+      }
+    </div>
+
+    <div style="margin-top: 16px;">
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer;">
+        <input type="checkbox" [(ngModel)]="lockSubjectsFlag" />
+        Lock student from changing subjects independently
+      </label>
+    </div>
+
+    <div modal-footer>
+      <button type="button" class="btn btn-secondary" (click)="isSubjectModalOpen.set(false)">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="saveSubjects()">Save Enrolled Subjects</button>
+    </div>
+  </app-modal>
+
+  <!-- Modal: Record Payment -->
+  <app-modal [isOpen]="isPaymentModalOpen()" [title]="'Record Fee Payment for ' + st.firstName" (close)="isPaymentModalOpen.set(false)">
+    <form [formGroup]="paymentForm">
+      <div class="form-group">
+        <label class="form-label">Payment Amount (₹) *</label>
+        <input type="number" formControlName="amount" class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Payment Date *</label>
+        <input type="date" formControlName="paymentDate" class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Payment Mode *</label>
+        <select formControlName="paymentMode" class="form-select">
+          <option value="UPI">UPI / QR Code</option>
+          <option value="Cash">Cash at Center</option>
+          <option value="Net Banking">Net Banking / IMPS / NEFT</option>
+          <option value="Cheque">Cheque</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Transaction / Reference Number</label>
+        <input type="text" formControlName="referenceNo" class="form-control" placeholder="e.g. UPI Ref / Cheque No" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Remarks</label>
+        <input type="text" formControlName="remarks" class="form-control" placeholder="Installment note, term note" />
+      </div>
+    </form>
+
+    <div modal-footer>
+      <button type="button" class="btn btn-secondary" (click)="isPaymentModalOpen.set(false)">Cancel</button>
+      <button type="button" class="btn btn-success" (click)="recordPayment()">Record & Verify Payment</button>
+    </div>
+  </app-modal>
+
+  <!-- Modal: Adjust Fee Structure -->
+  <app-modal [isOpen]="isFeeAdjustModalOpen()" [title]="'Adjust Fee Structure: ' + st.firstName" (close)="isFeeAdjustModalOpen.set(false)">
+    <form [formGroup]="adjustForm">
+      <div class="form-group">
+        <label class="form-label">Total Annual Tuition Fee (₹) *</label>
+        <input type="number" formControlName="totalAnnualFee" class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Concession / Discount (₹)</label>
+        <input type="number" formControlName="discountAmount" class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Reason for Concession / Scholarship</label>
+        <input type="text" formControlName="discountReason" class="form-control" placeholder="Merit scholarship, sibling concession" />
+      </div>
+    </form>
+
+    <div modal-footer>
+      <button type="button" class="btn btn-secondary" (click)="isFeeAdjustModalOpen.set(false)">Cancel</button>
+      <button type="button" class="btn btn-primary" (click)="saveFeeAdjustment()">Save Adjustments</button>
+    </div>
+  </app-modal>
+}

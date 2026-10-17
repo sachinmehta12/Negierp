@@ -1,0 +1,89 @@
+<div class="login-page">
+  <div class="login-card">
+    <!-- Header -->
+    <div class="login-header">
+      <div class="brand-badge">
+        <img src="assets/logo.png" alt="Logo" class="brand-avatar" onerror="this.src='favicon.png'">
+        <div>
+          <h2>NEGI TUTORIALS</h2>
+          <p class="tagline">Learn • Grow • Achieve</p>
+        </div>
+      </div>
+      <p class="login-subtext">Sign in to access your coaching portal</p>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+      <div class="form-group">
+        <label for="usernameOrEmail" class="form-label">Username or Email</label>
+        <div class="input-wrapper">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <input
+            id="usernameOrEmail"
+            type="text"
+            formControlName="usernameOrEmail"
+            class="form-control with-icon"
+            placeholder="Enter username or registered email"
+            [class.is-invalid]="loginForm.get('usernameOrEmail')?.invalid && loginForm.get('usernameOrEmail')?.touched"
+          />
+        </div>
+        @if (loginForm.get('usernameOrEmail')?.invalid && loginForm.get('usernameOrEmail')?.touched) {
+          <div class="error-msg">Username or email is required.</div>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Password</label>
+        <div class="input-wrapper">
+          <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            class="form-control with-icon"
+            placeholder="Enter your password"
+            [class.is-invalid]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+          />
+        </div>
+        @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
+          <div class="error-msg">Password is required.</div>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-submit" [disabled]="isLoading">
+        @if (isLoading) {
+          <span class="spinner"></span> Signing in...
+        } @else {
+          Sign In to Portal
+        }
+      </button>
+    </form>
+
+    <!-- Quick Demo Accounts -->
+    <div class="demo-logins">
+      <div class="demo-title">Quick Demo Logins</div>
+      <div class="demo-buttons">
+        <button type="button" class="btn-demo owner" (click)="fillDemo('owner')" title="Fill Owner Login">
+          Owner
+        </button>
+        <button type="button" class="btn-demo mentor" (click)="fillDemo('mentor')" title="Fill Mentor Login">
+          Mentor
+        </button>
+        <button type="button" class="btn-demo student" (click)="fillDemo('student')" title="Fill Student Login">
+          Student
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer link -->
+    <div class="login-footer">
+      <span>New student or faculty?</span>
+      <a routerLink="/auth/register" class="register-link">Create Account</a>
+    </div>
+
+    <!-- Watermark -->
+    <div class="login-watermark">
+      NEGI TUTORIALS • Made by Sachin Mehta
+    </div>
+  </div>
+</div>

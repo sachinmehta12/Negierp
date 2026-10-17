@@ -1,0 +1,106 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">My Scholar Profile</h1>
+      <p class="page-subtitle">Personal academic credentials and editable family contact coordinates</p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading your profile details...</p>
+    </div>
+  } @else {
+    <div class="profile-layout mt-6">
+      <!-- Left: Academic Badge Card -->
+      <div class="section-card student-summary-card">
+        <div class="avatar-large">
+          {{ student()?.firstName?.[0]?.toUpperCase() }}
+        </div>
+        <h2 class="student-fullname">{{ student()?.firstName }} {{ student()?.lastName }}</h2>
+        <div class="enrollment-tag">Roll No: {{ student()?.enrollmentNo }}</div>
+
+        <div class="divider"></div>
+
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-label">Academic Class:</span>
+            <span class="info-val font-bold">Class {{ student()?.targetClass }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Academic Stream:</span>
+            <span class="info-val font-semibold text-blue-700">
+              {{ student()?.stream?.name || 'Foundation (General)' }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Session:</span>
+            <span class="info-val">{{ student()?.academicYear || '2026-2027' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Gender:</span>
+            <span class="info-val">{{ student()?.gender || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Admission Date:</span>
+            <span class="info-val">{{ student()?.admissionDate | date:'mediumDate' }}</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3 class="parent-title">Parent / Guardian Details</h3>
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-label">Parent Name:</span>
+            <span class="info-val font-semibold">{{ student()?.parentName || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Parent Contact:</span>
+            <span class="info-val">{{ student()?.parentContact || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Parent Email:</span>
+            <span class="info-val">{{ student()?.parentEmail || '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Editable Contact Form -->
+      <div class="section-card">
+        <h2 class="section-title">Update Contact & Residence Details</h2>
+        <p class="section-subtitle">Ensure your phone number and address are current for emergency notices</p>
+
+        <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="modal-form mt-4">
+          <div class="form-group">
+            <label class="form-label required">Personal Phone / WhatsApp Number</label>
+            <input type="text" formControlName="contactNumber" class="form-input" placeholder="+91 98765 43210" />
+            @if (profileForm.get('contactNumber')?.touched && profileForm.get('contactNumber')?.invalid) {
+              <span class="form-error">Contact number is required</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Emergency Alternate Contact</label>
+            <input type="text" formControlName="emergencyContact" class="form-input" placeholder="+91 98765 00000" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Residential Address</label>
+            <textarea formControlName="address" class="form-textarea" rows="3" placeholder="House/Flat No, Street, Landmark, City, Pincode"></textarea>
+            @if (profileForm.get('address')?.touched && profileForm.get('address')?.invalid) {
+              <span class="form-error">Address is required</span>
+            }
+          </div>
+
+          <div class="mt-6">
+            <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || isSaving()">
+              {{ isSaving() ? 'Saving...' : '💾 Update Contact Details' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

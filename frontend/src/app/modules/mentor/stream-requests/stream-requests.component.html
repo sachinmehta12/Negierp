@@ -1,0 +1,128 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Course & Stream Change Requests</h1>
+      <p class="page-subtitle">Review student requests to modify enrolled streams or subjects</p>
+    </div>
+  </div>
+
+  <!-- Status Tabs Bar -->
+  <div class="filter-card">
+    <div class="filter-group">
+      <label>Filter by Request Status:</label>
+      <div class="btn-toggle-group">
+        <button class="toggle-btn" [class.active]="selectedStatus() === 'Pending'" (click)="onStatusChange('Pending')">Pending Approvals</button>
+        <button class="toggle-btn" [class.active]="selectedStatus() === 'Approved'" (click)="onStatusChange('Approved')">Approved History</button>
+        <button class="toggle-btn" [class.active]="selectedStatus() === 'Rejected'" (click)="onStatusChange('Rejected')">Rejected History</button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading change requests...</p>
+    </div>
+  } @else {
+    <div class="section-card mt-6">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Submitted Date</th>
+              <th>Enrollment</th>
+              <th>Student Name</th>
+              <th>Target Class</th>
+              <th>Request Type</th>
+              <th>Request Details</th>
+              <th>Status</th>
+              @if (selectedStatus() === 'Pending') {
+                <th class="text-right">Actions</th>
+              } @else {
+                <th>Mentor Remarks</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (req of requests(); track req.id) {
+              <tr>
+                <td>{{ req.createdAt | date:'mediumDate' }}</td>
+                <td><span class="font-mono text-xs font-bold">{{ req.student?.enrollmentNo }}</span></td>
+                <td>
+                  <div class="font-bold text-slate-900">{{ req.student?.firstName }} {{ req.student?.lastName }}</div>
+                </td>
+                <td><span class="class-pill">Class {{ req.student?.targetClass }}</span></td>
+                <td><span class="badge badge-info">{{ req.requestType }}</span></td>
+                <td>
+                  <div class="details-text">{{ req.details }}</div>
+                </td>
+                <td>
+                  <span class="badge" 
+                    [class.badge-warning]="req.status === 'Pending'"
+                    [class.badge-success]="req.status === 'Approved'"
+                    [class.badge-danger]="req.status === 'Rejected'">
+                    {{ req.status }}
+                  </span>
+                </td>
+                @if (selectedStatus() === 'Pending') {
+                  <td class="text-right table-actions">
+                    <button class="btn btn-sm btn-success" (click)="openActionModal(req, 'approve')">
+                      ✓ Approve
+                    </button>
+                    <button class="btn btn-sm btn-outline danger" (click)="openActionModal(req, 'reject')">
+                      ✕ Reject
+                    </button>
+                  </td>
+                } @else {
+                  <td class="text-xs text-slate-600">{{ req.mentorRemarks || '—' }}</td>
+                }
+              </tr>
+            } @empty {
+              <tr>
+                <td [attr.colspan]="selectedStatus() === 'Pending' ? 8 : 8" class="text-center py-8 text-slate-400">
+                  No {{ selectedStatus().toLowerCase() }} change requests found.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Action Modal -->
+<app-modal 
+  [isOpen]="isActionModalOpen()" 
+  [title]="(actionType() === 'approve' ? 'Approve' : 'Reject') + ' Request #' + activeRequest()?.id"
+  (closeModal)="isActionModalOpen.set(false)">
+  <div class="modal-form">
+    <div class="request-summary-box">
+      <p><strong>Student:</strong> {{ activeRequest()?.student?.firstName }} {{ activeRequest()?.student?.lastName }} ({{ activeRequest()?.student?.enrollmentNo }})</p>
+      <p><strong>Request Type:</strong> {{ activeRequest()?.requestType }}</p>
+      <p><strong>Details:</strong> {{ activeRequest()?.details }}</p>
+      @if (actionType() === 'approve') {
+        <div class="approve-alert">
+          ℹ️ Approving this request will automatically unlock the student's stream and subject selection in their portal.
+        </div>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Mentor Remarks / Reason</label>
+      <textarea [(ngModel)]="mentorRemarks" class="form-textarea" rows="3" placeholder="Provide note to student..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isActionModalOpen.set(false)">Cancel</button>
+      <button 
+        type="button" 
+        class="btn" 
+        [class.btn-success]="actionType() === 'approve'"
+        [class.btn-danger]="actionType() === 'reject'"
+        (click)="submitAction()">
+        Confirm {{ actionType() === 'approve' ? 'Approval' : 'Rejection' }}
+      </button>
+    </div>
+  </div>
+</app-modal>

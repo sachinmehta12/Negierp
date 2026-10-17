@@ -1,0 +1,54 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Homework & Study Assignments</h1>
+      <p class="page-subtitle">Track questions, exercises, and submission deadlines set by your mentors</p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading homework assignments...</p>
+    </div>
+  } @else {
+    <div class="homework-grid mt-6">
+      @for (hw of homeworkList(); track hw.id) {
+        <div class="homework-card" [class.completed]="hw.myStatus?.status === 'Completed' || hw.myStatus?.status === 'Late'">
+          <div class="card-header">
+            <span class="subject-badge">{{ hw.subject?.name }}</span>
+            <span class="due-badge">Due: {{ hw.dueDate | date:'mediumDate' }}</span>
+          </div>
+
+          <h2 class="hw-title">{{ hw.title }}</h2>
+          <div class="hw-desc">{{ hw.description }}</div>
+
+          <div class="card-footer">
+            <div class="status-box">
+              @if (hw.myStatus) {
+                <span class="status-done" [class.late]="hw.myStatus.status === 'Late'">
+                  ✓ {{ hw.myStatus.status }}
+                  @if (hw.myStatus.completionDate) {
+                    ({{ hw.myStatus.completionDate | date:'shortDate' }})
+                  }
+                </span>
+              } @else {
+                <span class="status-pending">⏳ Pending Submission</span>
+              }
+            </div>
+
+            @if (!hw.myStatus) {
+              <button class="btn btn-sm btn-primary" (click)="markComplete(hw)">
+                ✓ Mark Completed
+              </button>
+            }
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p>🎉 All caught up! No pending homework assignments.</p>
+        </div>
+      }
+    </div>
+  }
+</div>

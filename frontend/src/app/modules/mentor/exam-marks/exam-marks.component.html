@@ -1,0 +1,116 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="header-breadcrumb">
+        <a class="back-link" (click)="goBack()">← Back to Exams</a>
+      </div>
+      <h1 class="page-title">{{ exam()?.title }} — Marksheet Entry</h1>
+      <p class="page-subtitle">
+        Class {{ exam()?.targetClass }} | {{ exam()?.subject?.name }} | Max: {{ exam()?.maxMarks }} Marks | Pass: {{ exam()?.passingMarks }} Marks
+      </p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="saveMarks()" [disabled]="isSaving() || isLoading()">
+        {{ isSaving() ? 'Saving...' : '💾 Save & Publish Marksheet' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Live Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total Enrolled</span>
+      <span class="stat-value text-slate-800">{{ totalCount() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Appeared</span>
+      <span class="stat-value text-blue-600">{{ appearedCount() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Absent</span>
+      <span class="stat-value text-rose-600">{{ absentCount() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Passed</span>
+      <span class="stat-value text-emerald-600">{{ passedCount() }}</span>
+    </div>
+    <div class="stat-card highlight">
+      <span class="stat-label">Average Score</span>
+      <span class="stat-value text-indigo-700 font-extrabold">{{ averageScore() }}</span>
+      <span class="stat-hint">Out of {{ exam()?.maxMarks }}</span>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading class marksheet...</p>
+    </div>
+  } @else {
+    <div class="section-card mt-6">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 100px;">Roll No</th>
+              <th>Student Name</th>
+              <th style="width: 120px;">Absent?</th>
+              <th style="width: 160px;">Marks Obtained</th>
+              <th style="width: 90px;">Grade</th>
+              <th>Teacher Feedback / Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of entries(); track row.studentId) {
+              <tr [class.absent-row]="row.isAbsent">
+                <td><span class="enrollment-pill">{{ row.enrollmentNo }}</span></td>
+                <td><span class="font-bold text-slate-900">{{ row.name }}</span></td>
+                <td>
+                  <label class="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      [(ngModel)]="row.isAbsent" 
+                      (ngModelChange)="onAbsentToggle(row)" />
+                    <span class="text-xs font-semibold" [class.text-rose-600]="row.isAbsent">Absent</span>
+                  </label>
+                </td>
+                <td>
+                  <div class="marks-input-wrapper">
+                    <input 
+                      type="number" 
+                      [(ngModel)]="row.marksObtained" 
+                      (ngModelChange)="onMarksChange(row)"
+                      [disabled]="row.isAbsent"
+                      min="0" 
+                      [max]="exam()?.maxMarks || 100" 
+                      class="form-input marks-input" 
+                      placeholder="0" />
+                    <span class="max-marks-suffix">/ {{ exam()?.maxMarks }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="grade-badge" [attr.data-grade]="row.grade">
+                    {{ row.grade }}
+                  </span>
+                </td>
+                <td>
+                  <input 
+                    type="text" 
+                    [(ngModel)]="row.remarks" 
+                    placeholder="e.g. Good analytical skills, revise kinematics" 
+                    class="form-input remarks-input" />
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="text-center py-8 text-slate-400">
+                  No students enrolled in Class {{ exam()?.targetClass }}.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

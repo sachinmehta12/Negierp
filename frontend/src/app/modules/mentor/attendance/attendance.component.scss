@@ -1,0 +1,146 @@
+@use '../../../../styles.scss' as *;
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+
+  @media (max-width: 1280px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 18px 20px;
+}
+
+.filter-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.filter-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  .form-select, .form-input {
+    min-width: 200px;
+  }
+}
+
+.filter-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.btn-toggle-group {
+  display: flex;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toggle-btn {
+  border: none;
+  background: #f8fafc;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #e2e8f0;
+  }
+
+  &.active {
+    background: #1e3a8a;
+    color: #ffffff;
+  }
+}
+
+.enrollment-pill {
+  font-family: monospace;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.status-btn-group {
+  display: inline-flex;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid #cbd5e1;
+}
+
+.att-btn {
+  border: none;
+  background: #f8fafc;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-right: 1px solid #e2e8f0;
+
+  &:last-child {
+    border-right: none;
+  }
+
+  &:hover {
+    background: #f1f5f9;
+  }
+
+  &.present.selected {
+    background: #10b981;
+    color: #ffffff;
+  }
+
+  &.late.selected {
+    background: #f59e0b;
+    color: #ffffff;
+  }
+
+  &.absent.selected {
+    background: #ef4444;
+    color: #ffffff;
+  }
+
+  &.excused.selected {
+    background: #8b5cf6;
+    color: #ffffff;
+  }
+}
+
+.table-input {
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.65rem;
+}

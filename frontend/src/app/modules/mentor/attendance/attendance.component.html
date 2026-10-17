@@ -1,0 +1,157 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Live Attendance Register</h1>
+      <p class="page-subtitle">Mark and monitor daily student presence, tardiness, and leaves</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" (click)="markAll('Present')">
+        ✓ Mark All Present
+      </button>
+      <button class="btn btn-primary" (click)="saveAttendance()" [disabled]="isSaving() || isLoading()">
+        {{ isSaving() ? 'Saving...' : '💾 Save Attendance Register' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters Control Card -->
+  <div class="filter-card">
+    <div class="filter-col">
+      <label class="filter-label">Target Class</label>
+      <div class="btn-toggle-group">
+        <button class="toggle-btn" [class.active]="selectedClass() === 10" (click)="onClassChange(10)">
+          Class 10
+        </button>
+        <button class="toggle-btn" [class.active]="selectedClass() === 11" (click)="onClassChange(11)">
+          Class 11
+        </button>
+        <button class="toggle-btn" [class.active]="selectedClass() === 12" (click)="onClassChange(12)">
+          Class 12
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-col">
+      <label class="filter-label">Course / Subject</label>
+      <select 
+        class="form-select" 
+        [ngModel]="selectedSubjectId()" 
+        (ngModelChange)="selectedSubjectId.set($event); loadRegister()">
+        @for (sub of subjects(); track sub.id) {
+          <option [ngValue]="sub.id">{{ sub.name }} ({{ sub.code }})</option>
+        }
+      </select>
+    </div>
+
+    <div class="filter-col">
+      <label class="filter-label">Attendance Date</label>
+      <input 
+        type="date" 
+        class="form-input" 
+        [ngModel]="selectedDate()" 
+        (ngModelChange)="selectedDate.set($event); loadRegister()" />
+    </div>
+  </div>
+
+  <!-- KPI Live Stats Bar -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total Enrolled</span>
+      <span class="stat-value text-slate-800">{{ totalCount() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Present</span>
+      <span class="stat-value text-emerald-600">{{ presentCount() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Late</span>
+      <span class="stat-value text-amber-600">{{ lateCount() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Absent</span>
+      <span class="stat-value text-rose-600">{{ absentCount() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Daily Attendance Rate</span>
+      <span class="stat-value text-blue-700 font-extrabold">{{ attendancePercentage() }}%</span>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading attendance records...</p>
+    </div>
+  } @else {
+    <!-- Attendance Table Card -->
+    <div class="section-card mt-6">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 80px;">Roll No</th>
+              <th>Student Name</th>
+              <th style="width: 320px;">Attendance Status</th>
+              <th>Teacher Notes / Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of attendanceRecords(); track row.studentId) {
+              <tr>
+                <td><span class="enrollment-pill">{{ row.enrollmentNo }}</span></td>
+                <td>
+                  <span class="font-bold text-slate-900">{{ row.name }}</span>
+                </td>
+                <td>
+                  <div class="status-btn-group">
+                    <button 
+                      type="button" 
+                      class="att-btn present" 
+                      [class.selected]="row.status === 'Present'"
+                      (click)="setStatus(row, 'Present')">
+                      Present
+                    </button>
+                    <button 
+                      type="button" 
+                      class="att-btn late" 
+                      [class.selected]="row.status === 'Late'"
+                      (click)="setStatus(row, 'Late')">
+                      Late
+                    </button>
+                    <button 
+                      type="button" 
+                      class="att-btn absent" 
+                      [class.selected]="row.status === 'Absent'"
+                      (click)="setStatus(row, 'Absent')">
+                      Absent
+                    </button>
+                    <button 
+                      type="button" 
+                      class="att-btn excused" 
+                      [class.selected]="row.status === 'Excused'"
+                      (click)="setStatus(row, 'Excused')">
+                      Excused
+                    </button>
+                  </div>
+                </td>
+                <td>
+                  <input 
+                    type="text" 
+                    [(ngModel)]="row.remarks" 
+                    placeholder="e.g. Informs sick leave, arrived 15 min late" 
+                    class="form-input table-input" />
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="4" class="text-center py-8 text-slate-400">
+                  No students found in Class {{ selectedClass() }}.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

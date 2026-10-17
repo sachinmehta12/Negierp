@@ -1,0 +1,327 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Fee Management & Verification</h1>
+      <p class="page-subtitle">Student fee accounts, payment recording, online receipt approvals, and balances</p>
+    </div>
+  </div>
+
+  <!-- KPI Stats Bar -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total Assessed Fees</span>
+      <span class="stat-value text-slate-800">₹{{ totalExpected().toLocaleString('en-IN') }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Collected Fees</span>
+      <span class="stat-value text-emerald-600">₹{{ totalCollected().toLocaleString('en-IN') }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Outstanding Dues</span>
+      <span class="stat-value text-rose-600">₹{{ totalDue().toLocaleString('en-IN') }}</span>
+    </div>
+    <div class="stat-card highlight">
+      <span class="stat-label">Pending Verification</span>
+      <span class="stat-value text-amber-600">{{ pendingVerificationCount() }}</span>
+      <span class="stat-hint">Student submissions awaiting review</span>
+    </div>
+  </div>
+
+  <!-- Pending Approvals Section (if any) -->
+  @if (pendingPayments().length > 0) {
+    <div class="approval-card">
+      <div class="approval-header">
+        <div>
+          <h2 class="text-base font-bold text-amber-900">
+            ⚠️ Action Required: {{ pendingPayments().length }} Unverified Payment Submissions
+          </h2>
+          <span class="text-xs text-amber-700">Verify to instantly update student balance ledger</span>
+        </div>
+        <button class="btn btn-sm btn-primary" (click)="batchVerifyAll()">
+          ✓ Verify All ({{ pendingPayments().length }})
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Receipt / Ref No</th>
+              <th>Student</th>
+              <th>Class</th>
+              <th>Amount</th>
+              <th>Payment Mode</th>
+              <th>Submitted Date</th>
+              <th class="text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pay of pendingPayments(); track pay.id) {
+              <tr>
+                <td>
+                  <span class="font-mono font-bold">{{ pay.receiptNo }}</span>
+                  @if (pay.referenceNo) {
+                    <div class="text-xs text-slate-500">Ref: {{ pay.referenceNo }}</div>
+                  }
+                </td>
+                <td>
+                  <div class="font-bold">{{ pay.student?.firstName }} {{ pay.student?.lastName }}</div>
+                  <div class="text-xs text-slate-500">{{ pay.student?.enrollmentNo }}</div>
+                </td>
+                <td><span class="class-pill">Class {{ pay.student?.targetClass }}</span></td>
+                <td><span class="font-bold text-emerald-700">₹{{ pay.amount.toLocaleString('en-IN') }}</span></td>
+                <td><span class="mode-tag">{{ pay.paymentMode }}</span></td>
+                <td>{{ pay.paymentDate | date:'mediumDate' }}</td>
+                <td class="text-right">
+                  <button class="btn btn-sm btn-success" (click)="verifyPayment(pay)">
+                    ✓ Verify & Credit
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- Accounts Filter Bar -->
+  <div class="filter-card mt-6">
+    <div class="search-col">
+      <input 
+        type="text" 
+        [ngModel]="searchQuery()" 
+        (ngModelChange)="searchQuery.set($event)" 
+        placeholder="Search student by name or enrollment number..." 
+        class="form-input search-input" />
+    </div>
+
+    <div class="filter-col">
+      <label class="filter-label">Class:</label>
+      <div class="btn-toggle-group">
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === null" (click)="selectedClassFilter.set(null)">All</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 10" (click)="selectedClassFilter.set(10)">10</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 11" (click)="selectedClassFilter.set(11)">11</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 12" (click)="selectedClassFilter.set(12)">12</button>
+      </div>
+    </div>
+
+    <div class="filter-col">
+      <label class="filter-label">Status:</label>
+      <select 
+        class="form-select status-select" 
+        [ngModel]="selectedStatusFilter()" 
+        (ngModelChange)="selectedStatusFilter.set($event)">
+        <option value="ALL">All Statuses</option>
+        <option value="Paid">Paid</option>
+        <option value="Partial">Partial</option>
+        <option value="Pending">Pending</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading fee structures...</p>
+    </div>
+  } @else {
+    <!-- Main Fee Structures Table -->
+    <div class="section-card mt-4">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Enrollment</th>
+              <th>Student Name</th>
+              <th>Class</th>
+              <th>Annual Fee</th>
+              <th>Discount</th>
+              <th>Payable</th>
+              <th>Paid</th>
+              <th>Due Balance</th>
+              <th>Status</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (struct of filteredStructures(); track struct.id) {
+              <tr>
+                <td><span class="font-mono text-xs font-bold">{{ struct.student?.enrollmentNo }}</span></td>
+                <td>
+                  <div class="font-bold text-slate-900">{{ struct.student?.firstName }} {{ struct.student?.lastName }}</div>
+                </td>
+                <td><span class="class-pill">Class {{ struct.student?.targetClass }}</span></td>
+                <td>₹{{ struct.totalAnnualFee.toLocaleString('en-IN') }}</td>
+                <td>
+                  @if (struct.discountAmount > 0) {
+                    <span class="text-xs text-rose-600">-₹{{ struct.discountAmount.toLocaleString('en-IN') }}</span>
+                  } @else {
+                    <span class="text-slate-400">—</span>
+                  }
+                </td>
+                <td class="font-bold">₹{{ struct.finalFee.toLocaleString('en-IN') }}</td>
+                <td class="text-emerald-700 font-bold">₹{{ struct.paidAmount.toLocaleString('en-IN') }}</td>
+                <td>
+                  @if (struct.dueAmount > 0) {
+                    <span class="font-bold text-rose-600">₹{{ struct.dueAmount.toLocaleString('en-IN') }}</span>
+                  } @else {
+                    <span class="badge badge-success">Nil</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge" 
+                    [class.badge-success]="struct.status === 'Paid'"
+                    [class.badge-warning]="struct.status === 'Partial'"
+                    [class.badge-danger]="struct.status === 'Pending' || struct.status === 'Overdue'">
+                    {{ struct.status }}
+                  </span>
+                </td>
+                <td class="text-right table-actions">
+                  <button class="btn btn-sm btn-primary" (click)="openPaymentModal(struct)" title="Record payment">
+                    + Pay
+                  </button>
+                  <button class="btn btn-sm btn-outline" (click)="viewPaymentHistory(struct)" title="View payment receipts">
+                    Receipts
+                  </button>
+                  <button class="btn btn-sm btn-outline" (click)="openStructureModal(struct)" title="Adjust fee structure">
+                    ⚙️
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="10" class="text-center py-8 text-slate-400">
+                  No fee accounts found matching your filters.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Record Payment Modal -->
+<app-modal 
+  [isOpen]="isPaymentModalOpen()" 
+  [title]="'Record Payment: ' + activeStructure()?.student?.firstName + ' ' + activeStructure()?.student?.lastName"
+  (closeModal)="isPaymentModalOpen.set(false)">
+  <form [formGroup]="paymentForm" (ngSubmit)="submitPayment()" class="modal-form">
+    <div class="due-info-banner">
+      <span>Outstanding Balance Due:</span>
+      <strong>₹{{ activeStructure()?.dueAmount?.toLocaleString('en-IN') }}</strong>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Amount to Collect (₹)</label>
+        <input type="number" formControlName="amount" class="form-input" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Payment Mode</label>
+        <select formControlName="paymentMode" class="form-select">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI / QR Code</option>
+          <option value="Net Banking">Net Banking / NEFT</option>
+          <option value="Cheque">Cheque</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Transaction Reference / Cheque No.</label>
+      <input type="text" formControlName="referenceNo" class="form-input" placeholder="e.g. UPI Ref / Cheque No." />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Payment Remarks / Notes</label>
+      <input type="text" formControlName="remarks" class="form-input" placeholder="e.g. Quarter 1 installment" />
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isPaymentModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="paymentForm.invalid">
+        Record Payment & Generate Receipt
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- Adjust Structure Modal -->
+<app-modal 
+  [isOpen]="isStructureModalOpen()" 
+  [title]="'Adjust Fee Structure: ' + activeStructure()?.student?.firstName"
+  (closeModal)="isStructureModalOpen.set(false)">
+  <form [formGroup]="structureForm" (ngSubmit)="saveStructure()" class="modal-form">
+    <div class="form-group">
+      <label class="form-label required">Total Annual Assessed Fee (₹)</label>
+      <input type="number" formControlName="totalAnnualFee" class="form-input" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Scholarship / Discount Amount (₹)</label>
+      <input type="number" formControlName="discountAmount" class="form-input" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Discount Reason / Scholarship Scheme</label>
+      <input type="text" formControlName="discountReason" class="form-input" placeholder="e.g. Sibling concession, Merit scholarship" />
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isStructureModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="structureForm.invalid">
+        Save Structure
+      </button>
+    </div>
+  </form>
+</app-modal>
+
+<!-- Payment History Modal -->
+<app-modal 
+  [isOpen]="isHistoryModalOpen()" 
+  [title]="'Payment History: ' + activeStructure()?.student?.firstName + ' ' + activeStructure()?.student?.lastName"
+  (closeModal)="isHistoryModalOpen.set(false)">
+  <div class="history-container">
+    @if (historyPayments().length === 0) {
+      <p class="text-slate-400 py-6 text-center">No payment transactions recorded yet.</p>
+    } @else {
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Receipt #</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Mode</th>
+            <th>Status</th>
+            <th>Receipt</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pay of historyPayments(); track pay.id) {
+            <tr>
+              <td class="font-mono font-bold">{{ pay.receiptNo }}</td>
+              <td>{{ pay.paymentDate | date:'mediumDate' }}</td>
+              <td class="font-bold text-emerald-700">₹{{ pay.amount.toLocaleString('en-IN') }}</td>
+              <td>{{ pay.paymentMode }}</td>
+              <td>
+                <span class="badge" [class.badge-success]="pay.isVerified" [class.badge-warning]="!pay.isVerified">
+                  {{ pay.isVerified ? 'Verified' : 'Pending' }}
+                </span>
+              </td>
+              <td>
+                <button class="btn btn-xs btn-outline" (click)="printReceipt(pay.id)">
+                  View & Print
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</app-modal>

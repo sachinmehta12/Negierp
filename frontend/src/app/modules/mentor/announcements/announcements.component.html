@@ -1,0 +1,109 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Broadcast Notices & Announcements</h1>
+      <p class="page-subtitle">Post institute alerts, exam schedules, and holiday announcements</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span class="icon">+</span> New Broadcast Notice
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-card">
+    <div class="filter-group">
+      <label>Target Audience:</label>
+      <div class="btn-toggle-group">
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 'All'" (click)="onFilterChange('All')">All Students</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === '10'" (click)="onFilterChange('10')">Class 10</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === '11'" (click)="onFilterChange('11')">Class 11</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === '12'" (click)="onFilterChange('12')">Class 12</button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading announcements...</p>
+    </div>
+  } @else {
+    <div class="announcements-grid mt-6">
+      @for (ann of announcements(); track ann.id) {
+        <div class="notice-card" [attr.data-priority]="ann.priority">
+          <div class="notice-card-header">
+            <div class="tags-row">
+              <span class="priority-badge" [attr.data-priority]="ann.priority">
+                {{ ann.priority }}
+              </span>
+              <span class="target-badge">
+                Target: {{ ann.targetClass === 'All' ? 'All Classes' : 'Class ' + ann.targetClass }}
+              </span>
+            </div>
+            <button class="btn-delete-card" (click)="deleteAnnouncement(ann)" title="Delete Notice">🗑️</button>
+          </div>
+
+          <h2 class="notice-title">{{ ann.title }}</h2>
+          <div class="notice-body">{{ ann.content }}</div>
+
+          <div class="notice-footer">
+            <span class="notice-author">By: {{ ann.createdBy?.username || 'Institute Admin' }}</span>
+            <span class="notice-date">{{ ann.createdAt | date:'mediumDate' }}</span>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state-card">
+          <p>No broadcast announcements posted for this audience.</p>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- New Announcement Modal -->
+<app-modal 
+  [isOpen]="isModalOpen()" 
+  title="Broadcast New Announcement"
+  (closeModal)="isModalOpen.set(false)">
+  <form [formGroup]="announcementForm" (ngSubmit)="saveAnnouncement()" class="modal-form">
+    <div class="form-group">
+      <label class="form-label required">Notice Title</label>
+      <input type="text" formControlName="title" class="form-input" placeholder="e.g. Schedule for Upcoming Unit Test 1" />
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Target Audience</label>
+        <select formControlName="targetClass" class="form-select">
+          <option value="All">All Institute Students</option>
+          <option value="10">Class 10 Only</option>
+          <option value="11">Class 11 Only</option>
+          <option value="12">Class 12 Only</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Urgency / Priority</label>
+        <select formControlName="priority" class="form-select">
+          <option value="Normal">Normal</option>
+          <option value="Important">Important</option>
+          <option value="Urgent">Urgent Alert</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Announcement Content / Details</label>
+      <textarea formControlName="content" class="form-textarea" rows="4" placeholder="Write full details, timings, instructions..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="announcementForm.invalid">
+        Broadcast Announcement
+      </button>
+    </div>
+  </form>
+</app-modal>

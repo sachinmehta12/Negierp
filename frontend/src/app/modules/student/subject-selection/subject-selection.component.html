@@ -1,0 +1,102 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Curriculum Subjects Enrollment</h1>
+      <p class="page-subtitle">
+        Class {{ student()?.targetClass }} 
+        @if (student()?.stream) {
+          • {{ student()?.stream?.name }} ({{ student()?.stream?.code }})
+        }
+      </p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading course subjects...</p>
+    </div>
+  } @else {
+    <!-- Subject Locked Alert -->
+    @if (student()?.isSubjectLocked) {
+      <div class="alert-locked mb-6">
+        <div class="alert-icon">🔒</div>
+        <div class="alert-content">
+          <h3 class="alert-title">Your Subject Selections are Locked</h3>
+          <p class="alert-desc">
+            Your coaching course selections are officially registered and locked. To add or drop subjects, please submit a formal request to your mentor.
+          </p>
+        </div>
+        <a routerLink="/student/request-change" class="btn btn-outline">
+          Request Subject Change →
+        </a>
+      </div>
+    }
+
+    <!-- Live Fee Calculation Banner -->
+    <div class="fee-calculator-banner">
+      <div class="calc-info">
+        <span class="calc-label">Selected Subjects:</span>
+        <strong class="calc-count">{{ selectedSubjectIds().length }} courses</strong>
+      </div>
+      <div class="calc-fee">
+        <span class="calc-label">Total Monthly Tuition:</span>
+        <strong class="calc-amount">₹{{ totalMonthlyFee().toLocaleString('en-IN') }} / mo</strong>
+      </div>
+    </div>
+
+    <!-- Subjects Grid -->
+    <div class="subjects-grid mt-6">
+      @for (sub of availableSubjects(); track sub.id) {
+        <div 
+          class="subject-card" 
+          [class.selected]="isSelected(sub.id)"
+          [class.disabled]="student()?.isSubjectLocked"
+          (click)="toggleSubject(sub.id)">
+          <div class="card-header">
+            <span class="code-pill">{{ sub.code }}</span>
+            <input 
+              type="checkbox" 
+              [checked]="isSelected(sub.id)" 
+              [disabled]="!!student()?.isSubjectLocked"
+              (click)="$event.stopPropagation()"
+              (change)="toggleSubject(sub.id)" />
+          </div>
+
+          <h3 class="subject-title">{{ sub.name }}</h3>
+          <p class="subject-desc">{{ sub.description || 'Comprehensive board & entrance preparation syllabus.' }}</p>
+
+          <div class="card-footer">
+            <span class="fee-tag">₹{{ sub.monthlyFee }} / month</span>
+            <span class="status-indicator">
+              {{ isSelected(sub.id) ? '✓ Enrolled' : '+ Select' }}
+            </span>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p>No subjects available for your class and stream configuration.</p>
+        </div>
+      }
+    </div>
+
+    @if (!student()?.isSubjectLocked) {
+      <div class="submit-section mt-8">
+        <label class="checkbox-label mb-4">
+          <input type="checkbox" [(ngModel)]="lockSelection" />
+          <span class="font-medium text-slate-700">Lock my subject selection upon saving (Requires mentor approval to modify later)</span>
+        </label>
+
+        <div>
+          <button 
+            type="button" 
+            class="btn btn-primary" 
+            (click)="saveSubjects()" 
+            [disabled]="isSaving() || selectedSubjectIds().length === 0">
+            {{ isSaving() ? 'Saving...' : 'Confirm Enrollments & Update Schedule →' }}
+          </button>
+        </div>
+      </div>
+    }
+  }
+</div>

@@ -1,0 +1,130 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Weekly Schedule & Timetable</h1>
+      <p class="page-subtitle">Configure period slots, classroom rooms, and faculty schedules</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openAddSlot()">
+        <span class="icon">+</span> Add Class Slot
+      </button>
+    </div>
+  </div>
+
+  <!-- Class Selector Filter -->
+  <div class="filter-card">
+    <div class="filter-group">
+      <label>Select Target Class:</label>
+      <div class="btn-toggle-group">
+        <button class="toggle-btn" [class.active]="selectedClass() === 10" (click)="onClassChange(10)">Class 10</button>
+        <button class="toggle-btn" [class.active]="selectedClass() === 11" (click)="onClassChange(11)">Class 11</button>
+        <button class="toggle-btn" [class.active]="selectedClass() === 12" (click)="onClassChange(12)">Class 12</button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading weekly timetable...</p>
+    </div>
+  } @else {
+    <!-- Weekly Grid by Day -->
+    <div class="timetable-grid mt-6">
+      @for (day of days; track day) {
+        <div class="day-column">
+          <div class="day-header">
+            <h2 class="day-title">{{ day }}</h2>
+            <button class="btn-add-mini" (click)="openAddSlot(day)" title="Add slot for {{ day }}">+</button>
+          </div>
+
+          <div class="slots-container">
+            @for (slot of timetableByDay()[day] || []; track slot.id) {
+              <div class="slot-card">
+                <div class="slot-time">
+                  🕒 {{ slot.startTime }} – {{ slot.endTime }}
+                </div>
+                <div class="slot-subject">{{ slot.subject?.name }}</div>
+                <div class="slot-details">
+                  <span class="room-pill">📍 {{ slot.roomNo }}</span>
+                  <span class="mentor-pill">👨‍🏫 {{ slot.mentorName }}</span>
+                </div>
+                <button class="btn-slot-delete" (click)="deleteSlot(slot)" title="Remove slot">×</button>
+              </div>
+            } @empty {
+              <div class="day-empty">No lectures scheduled</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Add Timetable Slot Modal -->
+<app-modal 
+  [isOpen]="isModalOpen()" 
+  title="Add Schedule Lecture Slot"
+  (closeModal)="isModalOpen.set(false)">
+  <form [formGroup]="slotForm" (ngSubmit)="saveSlot()" class="modal-form">
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Target Class</label>
+        <select formControlName="targetClass" class="form-select">
+          <option [ngValue]="10">Class 10</option>
+          <option [ngValue]="11">Class 11</option>
+          <option [ngValue]="12">Class 12</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Day of Week</label>
+        <select formControlName="dayOfWeek" class="form-select">
+          @for (d of days; track d) {
+            <option [value]="d">{{ d }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Subject / Course</label>
+      <select formControlName="subjectId" class="form-select">
+        @for (sub of subjects(); track sub.id) {
+          <option [ngValue]="sub.id">{{ sub.name }} (Class {{ sub.targetClass }})</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Start Time</label>
+        <input type="text" formControlName="startTime" class="form-input" placeholder="e.g. 09:00 AM" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">End Time</label>
+        <input type="text" formControlName="endTime" class="form-input" placeholder="e.g. 10:30 AM" />
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Room / Hall No.</label>
+        <input type="text" formControlName="roomNo" class="form-input" placeholder="e.g. Hall A, Lab 2" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Assigned Mentor / Teacher</label>
+        <input type="text" formControlName="mentorName" class="form-input" placeholder="e.g. Dr. S. Negi" />
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="slotForm.invalid">
+        Save Slot
+      </button>
+    </div>
+  </form>
+</app-modal>

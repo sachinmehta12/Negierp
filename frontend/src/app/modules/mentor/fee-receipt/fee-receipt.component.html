@@ -1,0 +1,147 @@
+<div class="receipt-page">
+  <div class="actions-bar no-print">
+    <button class="btn btn-outline" (click)="goBack()">
+      ← Back to Fee Register
+    </button>
+    <button class="btn btn-primary" (click)="printReceipt()">
+      🖨️ Print Official Receipt
+    </button>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading fee receipt...</p>
+    </div>
+  } @else if (payment()) {
+    <div class="receipt-document">
+      <!-- Watermark -->
+      <div class="receipt-watermark">NEGI TUTORIALS</div>
+
+      <!-- Institute Header -->
+      <div class="receipt-header">
+        <div class="inst-brand">
+          <img src="assets/logo.png" alt="NEGI TUTORIALS Logo" class="receipt-logo" onerror="this.src='favicon.png'" />
+          <div class="inst-info">
+            <h1 class="inst-name">{{ institute()?.name || 'NEGI TUTORIALS' }}</h1>
+            <p class="inst-tagline">{{ institute()?.tagline || 'Learn • Grow • Achieve' }}</p>
+            <p class="inst-address">{{ institute()?.address || 'Plot 12, Sector 4, Main Road, New Delhi, India' }}</p>
+            <p class="inst-contact">Phone: {{ institute()?.phone || '+91 98765 43210' }} | Email: {{ institute()?.email || 'contact@negitutorials.com' }}</p>
+          </div>
+        </div>
+        <div class="receipt-badge-box">
+          <div class="badge-title">OFFICIAL FEE RECEIPT</div>
+          <div class="badge-num">{{ payment()?.receiptNo }}</div>
+          <div class="badge-date">Date: {{ payment()?.paymentDate | date:'mediumDate' }}</div>
+        </div>
+      </div>
+
+      <div class="receipt-divider"></div>
+
+      <!-- Student & Course Details -->
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="detail-label">Student Name:</span>
+          <span class="detail-value font-bold">{{ payment()?.student?.firstName }} {{ payment()?.student?.lastName }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Enrollment No:</span>
+          <span class="detail-value font-mono">{{ payment()?.student?.enrollmentNo }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Class & Stream:</span>
+          <span class="detail-value">
+            Class {{ payment()?.student?.targetClass }} 
+            @if (payment()?.student?.stream) {
+              — {{ payment()?.student?.stream?.name }} ({{ payment()?.student?.stream?.code }})
+            }
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Parent / Guardian:</span>
+          <span class="detail-value">{{ payment()?.student?.parentName || '—' }} ({{ payment()?.student?.parentContact || '—' }})</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Academic Session:</span>
+          <span class="detail-value">{{ payment()?.feeStructure?.academicYear || '2026-2027' }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Verification Status:</span>
+          <span class="status-verified">
+            {{ payment()?.isVerified ? '✓ Verified & Cleared' : '⏳ Pending Mentor Approval' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Payment Breakdown Table -->
+      <table class="receipt-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Mode</th>
+            <th>Reference / Cheque No</th>
+            <th class="text-right">Amount Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="font-bold">Tuition / Coaching Fee Installment</div>
+              @if (payment()?.remarks) {
+                <div class="text-xs text-slate-500">Remarks: {{ payment()?.remarks }}</div>
+              }
+            </td>
+            <td><span class="mode-pill">{{ payment()?.paymentMode }}</span></td>
+            <td>{{ payment()?.referenceNo || 'Direct / Cash' }}</td>
+            <td class="text-right font-bold text-base text-slate-900">
+              ₹{{ payment()?.amount?.toLocaleString('en-IN') }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Ledger Summary -->
+      @if (payment()?.feeStructure) {
+        <div class="ledger-box">
+          <div class="ledger-col">
+            <span class="ledger-label">Total Annual Fee:</span>
+            <span class="ledger-val">₹{{ payment()?.feeStructure?.totalAnnualFee?.toLocaleString('en-IN') }}</span>
+          </div>
+          <div class="ledger-col">
+            <span class="ledger-label">Scholarship / Discount:</span>
+            <span class="ledger-val text-rose-600">-₹{{ payment()?.feeStructure?.discountAmount?.toLocaleString('en-IN') }}</span>
+          </div>
+          <div class="ledger-col">
+            <span class="ledger-label">Net Payable Fee:</span>
+            <span class="ledger-val font-bold">₹{{ payment()?.feeStructure?.finalFee?.toLocaleString('en-IN') }}</span>
+          </div>
+          <div class="ledger-col">
+            <span class="ledger-label">Total Paid to Date:</span>
+            <span class="ledger-val text-emerald-700 font-bold">₹{{ payment()?.feeStructure?.paidAmount?.toLocaleString('en-IN') }}</span>
+          </div>
+          <div class="ledger-col outstanding">
+            <span class="ledger-label">Current Balance Due:</span>
+            <span class="ledger-val font-bold text-rose-700">₹{{ payment()?.feeStructure?.dueAmount?.toLocaleString('en-IN') }}</span>
+          </div>
+        </div>
+      }
+
+      <!-- Footer & Signatures -->
+      <div class="receipt-footer">
+        <div class="footer-terms">
+          <p><strong>Note:</strong></p>
+          <p>1. Fees once paid are non-refundable and non-transferable.</p>
+          <p>2. This is a computer-generated official receipt issued by Negi Tutorials ERP.</p>
+          <div class="mt-2 text-xs text-slate-400">Portal Designed & Built by Sachin Mehta</div>
+        </div>
+        <div class="footer-sign">
+          <div class="sign-line"></div>
+          <p class="sign-label">Authorized Signatory / Cashier</p>
+          @if (payment()?.receivedBy) {
+            <p class="text-xs text-slate-500">Issued by: {{ payment()?.receivedBy?.username }}</p>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

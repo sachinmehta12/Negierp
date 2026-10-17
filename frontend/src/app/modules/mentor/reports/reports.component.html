@@ -1,0 +1,58 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Reports & Data Exports</h1>
+      <p class="page-subtitle">Generate official spreadsheet summaries and archival CSV files for offline analysis</p>
+    </div>
+  </div>
+
+  <div class="reports-grid mt-6">
+    <!-- Student Roster Export -->
+    <div class="report-card">
+      <div class="report-icon">🎓</div>
+      <div class="report-content">
+        <h2 class="report-title">Student Directory Roster</h2>
+        <p class="report-desc">Complete register of all enrolled scholars including contact info, parent details, current academic stream, and admission timestamps.</p>
+        <button class="btn btn-outline" (click)="download('students', 'Student Roster')">
+          📥 Download Students CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Fee Financials Export -->
+    <div class="report-card">
+      <div class="report-icon">💰</div>
+      <div class="report-content">
+        <h2 class="report-title">Fee Dues & Financial Ledger</h2>
+        <p class="report-desc">Comprehensive fee assessment breakdown containing annual fees, scholarship deductions, verified collected revenue, and outstanding balance debts.</p>
+        <button class="btn btn-outline" (click)="download('fees', 'Fee Financials')">
+          📥 Download Fee Ledger CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Exam Marks Export -->
+    <div class="report-card">
+      <div class="report-icon">📝</div>
+      <div class="report-content">
+        <h2 class="report-title">Academic Examination Marksheet</h2>
+        <p class="report-desc">Itemized marks report across all unit tests and board exams with calculated percentage grades, absent records, and mentor remarks.</p>
+        <button class="btn btn-outline" (click)="download('marks', 'Exam Marks')">
+          📥 Download Marks CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Attendance Register Export -->
+    <div class="report-card">
+      <div class="report-icon">📅</div>
+      <div class="report-content">
+        <h2 class="report-title">Attendance Register Audit</h2>
+        <p class="report-desc">Comprehensive daily attendance log with student presence, tardiness, absent occurrences, and teacher observations for all classes.</p>
+        <button class="btn btn-outline" (click)="download('attendance', 'Attendance Logs')">
+          📥 Download Attendance CSV
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

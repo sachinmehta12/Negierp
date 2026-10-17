@@ -1,0 +1,90 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Institute Configuration & Settings</h1>
+      <p class="page-subtitle">Manage branding, official communication contacts, and notification mail server</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="saveSettings()" [disabled]="isSaving() || isLoading()">
+        {{ isSaving() ? 'Saving...' : '💾 Save Institute Settings' }}
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading institute profile settings...</p>
+    </div>
+  } @else {
+    <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()" class="settings-form mt-6">
+      <!-- General Institute Profile Card -->
+      <div class="section-card">
+        <h2 class="section-title">Institute Branding & Profile</h2>
+        <p class="section-subtitle">Appears on all student receipts, marksheets, and parent SMS/Email vouchers</p>
+
+        <div class="form-grid-2 mt-4">
+          <div class="form-group">
+            <label class="form-label required">Institute Legal Name</label>
+            <input type="text" formControlName="name" class="form-input" />
+            @if (settingsForm.get('name')?.touched && settingsForm.get('name')?.invalid) {
+              <span class="form-error">Name is required</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Motto / Tagline</label>
+            <input type="text" formControlName="tagline" class="form-input" />
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label required">Official Phone / Helpline</label>
+            <input type="text" formControlName="phone" class="form-input" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label required">Official Email</label>
+            <input type="email" formControlName="email" class="form-input" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required">Physical Campus Address</label>
+          <textarea formControlName="address" class="form-textarea" rows="2"></textarea>
+        </div>
+      </div>
+
+      <!-- Outgoing Mail SMTP Card -->
+      <div class="section-card mt-6">
+        <h2 class="section-title">SMTP Mail Server (Email Notifications)</h2>
+        <p class="section-subtitle">Optional SMTP configuration for sending attendance alerts and fee receipts</p>
+
+        <div class="form-grid-2 mt-4">
+          <div class="form-group">
+            <label class="form-label">SMTP Server Host</label>
+            <input type="text" formControlName="mailServer" class="form-input" placeholder="smtp.gmail.com" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">SMTP Port</label>
+            <input type="number" formControlName="mailPort" class="form-input" placeholder="587" />
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">SMTP Username</label>
+            <input type="text" formControlName="mailUsername" class="form-input" placeholder="alerts@negitutorials.com" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">SMTP Password</label>
+            <input type="password" formControlName="mailPassword" class="form-input" placeholder="••••••••" />
+          </div>
+        </div>
+      </div>
+    </form>
+  }
+</div>

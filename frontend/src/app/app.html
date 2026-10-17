@@ -1,0 +1,15 @@
+<app-toast></app-toast>
+
+@if (authService.isAuthenticated()) {
+  <div class="app-container">
+    <app-sidebar [isMobileOpen]="isMobileSidebarOpen()" (closeSidebar)="closeMobileSidebar()"></app-sidebar>
+    <div class="main-wrapper">
+      <app-header (toggleSidebar)="toggleMobileSidebar()"></app-header>
+      <main class="content-body">
+        <router-outlet></router-outlet>
+      </main>
+    </div>
+  </div>
+} @else {
+  <router-outlet></router-outlet>
+}

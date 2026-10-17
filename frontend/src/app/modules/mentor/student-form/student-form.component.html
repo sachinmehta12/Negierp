@@ -1,0 +1,185 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1>{{ isEdit() ? 'Edit Student Profile' : 'New Student Admission' }}</h1>
+      <p class="page-subtitle">{{ isEdit() ? 'Update existing student records and locks' : 'Register a new coaching student and initialize fee account' }}</p>
+    </div>
+    <div class="page-actions">
+      <a routerLink="/mentor/students" class="btn btn-secondary">
+        &larr; Back to Students List
+      </a>
+    </div>
+  </div>
+
+  <div class="card" style="max-width: 840px;">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <!-- Section: Account & Identity -->
+      <h3 class="section-title">1. Account & Portal Credentials</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Username *</label>
+          <input type="text" formControlName="username" class="form-control" placeholder="Unique username" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address *</label>
+          <input type="email" formControlName="email" class="form-control" placeholder="Student email" />
+        </div>
+      </div>
+
+      @if (!isEdit()) {
+        <div class="form-group">
+          <label class="form-label">Default Password</label>
+          <input type="text" formControlName="password" class="form-control" placeholder="Default Password123" />
+        </div>
+      }
+
+      <!-- Section: Personal Information -->
+      <h3 class="section-title" style="margin-top: 24px;">2. Personal Details</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">First Name *</label>
+          <input type="text" formControlName="firstName" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name *</label>
+          <input type="text" formControlName="lastName" class="form-control" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select formControlName="gender" class="form-select">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" formControlName="dob" class="form-control" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Student Contact Number</label>
+          <input type="text" formControlName="contactNumber" class="form-control" placeholder="+91 98765 43210" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Emergency Contact Number</label>
+          <input type="text" formControlName="emergencyContact" class="form-control" placeholder="+91 98765 43211" />
+        </div>
+      </div>
+
+      <!-- Section: Guardian Information -->
+      <h3 class="section-title" style="margin-top: 24px;">3. Parent / Guardian Details</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Parent / Guardian Name</label>
+          <input type="text" formControlName="parentName" class="form-control" placeholder="Father / Mother name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Parent Contact Number</label>
+          <input type="text" formControlName="parentContact" class="form-control" placeholder="+91 98765 43212" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Parent Email Address</label>
+        <input type="email" formControlName="parentEmail" class="form-control" placeholder="parent@example.com" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Residential Address</label>
+        <textarea formControlName="address" class="form-control" rows="2" placeholder="Street address, city, pin"></textarea>
+      </div>
+
+      <!-- Section: Academic Enrollment -->
+      <h3 class="section-title" style="margin-top: 24px;">4. Academic Target & Stream</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Target Class *</label>
+          <select formControlName="targetClass" class="form-select">
+            <option [value]="10">Class 10</option>
+            <option [value]="11">Class 11</option>
+            <option [value]="12">Class 12</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Academic Year</label>
+          <input type="text" formControlName="academicYear" class="form-control" />
+        </div>
+      </div>
+
+      @if (form.get('targetClass')?.value !== 10) {
+        <div class="form-group">
+          <label class="form-label">Academic Stream</label>
+          <select formControlName="streamId" class="form-select">
+            <option [value]="0">-- Common / No Specific Stream --</option>
+            @for (st of streams(); track st.id) {
+              <option [value]="st.id">{{ st.name }} ({{ st.code }})</option>
+            }
+          </select>
+        </div>
+      }
+
+      @if (isEdit()) {
+        <div class="form-row" style="margin-top: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 700;">
+            <input type="checkbox" formControlName="isStreamLocked" />
+            Lock Stream Selection
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 700;">
+            <input type="checkbox" formControlName="isSubjectLocked" />
+            Lock Subject Choices
+          </label>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 700;">
+            <input type="checkbox" formControlName="isActive" />
+            Account Is Active
+          </label>
+        </div>
+      }
+
+      @if (!isEdit()) {
+        <!-- Section: Fee Structure Setup -->
+        <h3 class="section-title" style="margin-top: 24px;">5. Initial Fee Structure</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Total Annual Coaching Fee (₹) *</label>
+            <input type="number" formControlName="totalAnnualFee" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Concession / Discount (₹)</label>
+            <input type="number" formControlName="discountAmount" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Reason for Concession (Optional)</label>
+          <input type="text" formControlName="discountReason" class="form-control" placeholder="Scholarship, sibling concession" />
+        </div>
+      }
+
+      <div class="form-group" style="margin-top: 16px;">
+        <label class="form-label">Administrative Notes</label>
+        <textarea formControlName="notes" class="form-control" rows="2" placeholder="Special requirements, batch timings"></textarea>
+      </div>
+
+      <div style="margin-top: 32px; display: flex; gap: 14px;">
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading()">
+          @if (isLoading()) {
+            <span class="spinner"></span> Saving...
+          } @else {
+            {{ isEdit() ? 'Update Student Profile' : 'Admit Student & Create Account' }}
+          }
+        </button>
+        <a routerLink="/mentor/students" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>

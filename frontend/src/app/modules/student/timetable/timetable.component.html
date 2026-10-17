@@ -1,0 +1,42 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Class {{ targetClass() }} Lecture Schedule</h1>
+      <p class="page-subtitle">Your personalized weekly timetable mapped to your enrolled subjects</p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading weekly schedule...</p>
+    </div>
+  } @else {
+    <div class="timetable-grid mt-6">
+      @for (day of days; track day) {
+        <div class="day-column">
+          <div class="day-header">
+            <h2 class="day-title">{{ day }}</h2>
+          </div>
+
+          <div class="slots-container">
+            @for (slot of timetableByDay()[day] || []; track slot.id) {
+              <div class="slot-card">
+                <div class="slot-time">
+                  🕒 {{ slot.startTime }} – {{ slot.endTime }}
+                </div>
+                <div class="slot-subject">{{ slot.subject?.name }}</div>
+                <div class="slot-details">
+                  <span class="room-pill">📍 {{ slot.roomNo }}</span>
+                  <span class="mentor-pill">👨‍🏫 {{ slot.mentorName }}</span>
+                </div>
+              </div>
+            } @empty {
+              <div class="day-empty">No lectures scheduled</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

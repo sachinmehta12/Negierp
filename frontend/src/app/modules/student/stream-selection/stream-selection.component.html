@@ -1,0 +1,91 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">High School Academic Stream Selection</h1>
+      <p class="page-subtitle">Choose your specialization pathway for Classes 11 and 12</p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading available streams...</p>
+    </div>
+  } @else if (student()?.targetClass === 10) {
+    <!-- Class 10 Notice -->
+    <div class="section-card mt-6 text-center py-10">
+      <div class="text-4xl mb-3">📘</div>
+      <h2 class="text-xl font-bold text-slate-800">Class 10 Follows Standard Foundation Curriculum</h2>
+      <p class="text-slate-500 max-w-md mx-auto mt-2">
+        Academic streams (Science PCM/PCB, Commerce, Arts) begin in Class 11. Class 10 students enroll directly into core subjects.
+      </p>
+      <div class="mt-6">
+        <a routerLink="/student/subject-selection" class="btn btn-primary">
+          Select Class 10 Subjects →
+        </a>
+      </div>
+    </div>
+  } @else {
+    <!-- Stream Locked Alert -->
+    @if (student()?.isStreamLocked) {
+      <div class="alert-locked mb-6">
+        <div class="alert-icon">🔒</div>
+        <div class="alert-content">
+          <h3 class="alert-title">Academic Stream Selection is Locked</h3>
+          <p class="alert-desc">
+            Your stream has been locked to <strong>{{ student()?.stream?.name }} ({{ student()?.stream?.code }})</strong>.
+            To change your stream, submit a formal request to your mentor.
+          </p>
+        </div>
+        <a routerLink="/student/request-change" class="btn btn-outline">
+          Request Stream Change →
+        </a>
+      </div>
+    }
+
+    <!-- Streams Grid -->
+    <div class="streams-selection-grid">
+      @for (st of streams(); track st.id) {
+        <label 
+          class="stream-option-card" 
+          [class.selected]="selectedStreamId() === st.id"
+          [class.disabled]="student()?.isStreamLocked">
+          <div class="option-header">
+            <span class="stream-code">{{ st.code }}</span>
+            <input 
+              type="radio" 
+              name="streamSelection" 
+              [value]="st.id" 
+              [ngModel]="selectedStreamId()"
+              (ngModelChange)="selectedStreamId.set($event)"
+              [disabled]="!!student()?.isStreamLocked" />
+          </div>
+
+          <h3 class="stream-title">{{ st.name }}</h3>
+          <p class="stream-description">{{ st.description || 'Prepares students for university entrance exams and board milestones.' }}</p>
+
+          <div class="stream-badge">Classes: {{ st.applicableClasses }}</div>
+        </label>
+      }
+    </div>
+
+    @if (!student()?.isStreamLocked) {
+      <div class="submit-section mt-8">
+        <label class="checkbox-label mb-4">
+          <input type="checkbox" [(ngModel)]="lockStream" />
+          <span class="font-medium text-slate-700">Lock stream selection upon saving (Requires mentor approval to modify later)</span>
+        </label>
+
+        <div>
+          <button 
+            type="button" 
+            class="btn btn-primary" 
+            (click)="saveStream()" 
+            [disabled]="isSaving() || !selectedStreamId()">
+            {{ isSaving() ? 'Saving...' : 'Confirm Stream & Proceed to Subject Selection →' }}
+          </button>
+        </div>
+      </div>
+    }
+  }
+</div>

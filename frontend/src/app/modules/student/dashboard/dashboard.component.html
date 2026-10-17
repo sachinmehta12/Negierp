@@ -1,0 +1,189 @@
+<div class="page-container">
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading your student portal...</p>
+    </div>
+  } @else {
+    <!-- Welcome Header Banner -->
+    <div class="welcome-banner">
+      <div class="welcome-content">
+        <div class="welcome-tag">Academic Session {{ student()?.academicYear || '2026-2027' }}</div>
+        <h1 class="welcome-title">Welcome back, {{ student()?.firstName }}! 👋</h1>
+        <p class="welcome-subtitle">
+          Class {{ student()?.targetClass }} 
+          @if (student()?.stream) {
+            • {{ student()?.stream?.name }} ({{ student()?.stream?.code }})
+          }
+          • Roll No: <strong class="font-mono">{{ student()?.enrollmentNo }}</strong>
+        </p>
+      </div>
+      <div class="welcome-actions">
+        <a routerLink="/student/fees" class="btn btn-primary">
+          💳 Pay Tuition Fees
+        </a>
+      </div>
+    </div>
+
+    <!-- Student KPI Metric Cards -->
+    <div class="stats-grid mt-6">
+      <div class="stat-card">
+        <span class="stat-label">Overall Attendance</span>
+        <span class="stat-value" [class.text-emerald-600]="attendancePercentage() >= 75" [class.text-rose-600]="attendancePercentage() < 75">
+          {{ attendancePercentage() }}%
+        </span>
+        <span class="stat-hint">
+          {{ attendancePercentage() >= 75 ? '✓ Good standing' : '⚠️ Below 75% requirement' }}
+        </span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Enrolled Subjects</span>
+        <span class="stat-value text-blue-700">
+          {{ student()?.studentSubjects?.length || 0 }}
+        </span>
+        <span class="stat-hint">Coaching courses</span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Tuition Due Balance</span>
+        <span class="stat-value" [class.text-rose-600]="(feeStructure()?.dueAmount ?? 0) > 0" [class.text-emerald-600]="(feeStructure()?.dueAmount ?? 0) === 0">
+          ₹{{ (feeStructure()?.dueAmount ?? 0).toLocaleString('en-IN') }}
+        </span>
+        <span class="stat-hint">
+          Status: <strong>{{ feeStructure()?.status || 'Active' }}</strong>
+        </span>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Academic Average</span>
+        <span class="stat-value text-indigo-700 font-extrabold">
+          {{ examAverage() }}%
+        </span>
+        <span class="stat-hint">Across verified exams</span>
+      </div>
+    </div>
+
+    <!-- Main Two-Column Layout -->
+    <div class="dashboard-split mt-6">
+      <!-- Left Column: Today's Classes & Enrolled Subjects -->
+      <div class="split-col">
+        <!-- Today's Schedule Card -->
+        <div class="section-card">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">📅 Today's Lecture Schedule</h2>
+              <p class="section-subtitle">Real-time timetable for today</p>
+            </div>
+            <a routerLink="/student/timetable" class="btn-text">Full Week →</a>
+          </div>
+
+          <div class="schedule-list mt-4">
+            @for (slot of todayClasses(); track slot.id) {
+              <div class="schedule-item">
+                <div class="time-col">
+                  <span class="time-text">{{ slot.startTime }}</span>
+                  <span class="time-sub">{{ slot.endTime }}</span>
+                </div>
+                <div class="details-col">
+                  <div class="font-bold text-slate-900">{{ slot.subject?.name }}</div>
+                  <div class="text-xs text-slate-500">📍 {{ slot.roomNo }} • 👨‍🏫 {{ slot.mentorName }}</div>
+                </div>
+              </div>
+            } @empty {
+              <div class="empty-state-mini">No lectures scheduled for today. Enjoy your study time!</div>
+            }
+          </div>
+        </div>
+
+        <!-- Enrolled Subjects Card -->
+        <div class="section-card mt-6">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">📚 Enrolled Subjects</h2>
+              <p class="section-subtitle">Active courses in your curriculum</p>
+            </div>
+            @if (!student()?.isSubjectLocked) {
+              <a routerLink="/student/subject-selection" class="btn-text">Edit Subjects →</a>
+            }
+          </div>
+
+          <div class="enrolled-grid mt-4">
+            @for (subAssoc of student()?.studentSubjects; track subAssoc.id) {
+              <div class="enrolled-card">
+                <div class="code-badge">{{ subAssoc.subject?.code }}</div>
+                <div class="sub-title">{{ subAssoc.subject?.name }}</div>
+                <div class="sub-fee">₹{{ subAssoc.subject?.monthlyFee }} / mo</div>
+              </div>
+            } @empty {
+              <div class="empty-state-mini">
+                No subjects selected yet.
+                <a routerLink="/student/subject-selection" class="btn-text ml-1">Select Subjects Now →</a>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Recent Notices & Quick Links -->
+      <div class="split-col">
+        <!-- Announcements Notice Board -->
+        <div class="section-card">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">📢 Notice Board</h2>
+              <p class="section-subtitle">Important broadcasts from institute faculty</p>
+            </div>
+            <a routerLink="/student/announcements" class="btn-text">All Notices →</a>
+          </div>
+
+          <div class="notices-list mt-4">
+            @for (ann of announcements(); track ann.id) {
+              <div class="notice-item" [attr.data-priority]="ann.priority">
+                <div class="notice-top">
+                  <span class="priority-pill" [attr.data-priority]="ann.priority">{{ ann.priority }}</span>
+                  <span class="text-xs text-slate-400">{{ ann.createdAt | date:'mediumDate' }}</span>
+                </div>
+                <h3 class="notice-headline">{{ ann.title }}</h3>
+                <p class="notice-snippet">{{ ann.content }}</p>
+              </div>
+            } @empty {
+              <div class="empty-state-mini">No recent announcements.</div>
+            }
+          </div>
+        </div>
+
+        <!-- Quick Self-Service Links -->
+        <div class="section-card mt-6">
+          <h2 class="section-title">⚡ Quick Shortcuts</h2>
+          <div class="shortcuts-grid mt-4">
+            <a routerLink="/student/marks" class="shortcut-item">
+              <span class="shortcut-icon">📊</span>
+              <span class="shortcut-label">My Exam Results</span>
+            </a>
+            <a routerLink="/student/attendance" class="shortcut-item">
+              <span class="shortcut-icon">📅</span>
+              <span class="shortcut-label">Attendance History</span>
+            </a>
+            <a routerLink="/student/fees" class="shortcut-item">
+              <span class="shortcut-icon">💳</span>
+              <span class="shortcut-label">Pay Tuition / Receipts</span>
+            </a>
+            <a routerLink="/student/homework" class="shortcut-item">
+              <span class="shortcut-icon">📝</span>
+              <span class="shortcut-label">Pending Homework</span>
+            </a>
+            <a routerLink="/student/request-change" class="shortcut-item">
+              <span class="shortcut-icon">🔄</span>
+              <span class="shortcut-label">Request Stream Change</span>
+            </a>
+            <a routerLink="/student/profile" class="shortcut-item">
+              <span class="shortcut-icon">👤</span>
+              <span class="shortcut-label">Edit Contact Info</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

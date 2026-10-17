@@ -1,0 +1,133 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Homework & Study Assignments</h1>
+      <p class="page-subtitle">Assign exercises, set submission deadlines, and monitor student completion</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span class="icon">+</span> Create Assignment
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-card">
+    <div class="filter-group">
+      <label>Filter by Class:</label>
+      <div class="btn-toggle-group">
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === null" (click)="selectedClassFilter.set(null); loadHomework()">All</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 10" (click)="selectedClassFilter.set(10); loadHomework()">Class 10</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 11" (click)="selectedClassFilter.set(11); loadHomework()">Class 11</button>
+        <button class="toggle-btn" [class.active]="selectedClassFilter() === 12" (click)="selectedClassFilter.set(12); loadHomework()">Class 12</button>
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading assignments...</p>
+    </div>
+  } @else {
+    <div class="section-card mt-6">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Assignment Title</th>
+              <th>Course / Subject</th>
+              <th>Class</th>
+              <th>Due Date</th>
+              <th>Assigned By</th>
+              <th>Submissions</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (hw of homeworkList(); track hw.id) {
+              <tr>
+                <td>
+                  <div class="font-bold text-slate-900">{{ hw.title }}</div>
+                  <div class="text-xs text-slate-500 line-clamp-1">{{ hw.description }}</div>
+                </td>
+                <td><span class="font-semibold text-slate-700">{{ hw.subject?.name }}</span></td>
+                <td><span class="class-pill">Class {{ hw.targetClass }}</span></td>
+                <td>
+                  <span class="font-medium text-slate-800">{{ hw.dueDate | date:'mediumDate' }}</span>
+                </td>
+                <td>{{ hw.assignedBy?.username || 'Mentor' }}</td>
+                <td>
+                  <span class="badge badge-info">
+                    {{ hw.statuses?.length || 0 }} Completed
+                  </span>
+                </td>
+                <td class="text-right">
+                  <button class="btn btn-sm btn-outline danger" (click)="deleteHomework(hw)" title="Delete assignment">
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="text-center py-8 text-slate-400">
+                  No homework assignments found for this filter. Click "+ Create Assignment" above.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Create Assignment Modal -->
+<app-modal 
+  [isOpen]="isModalOpen()" 
+  title="Create New Homework Assignment"
+  (closeModal)="isModalOpen.set(false)">
+  <form [formGroup]="homeworkForm" (ngSubmit)="saveHomework()" class="modal-form">
+    <div class="form-group">
+      <label class="form-label required">Assignment Title</label>
+      <input type="text" formControlName="title" class="form-input" placeholder="e.g. Chapter 4 Practice Problems (Q1 - Q15)" />
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label required">Target Class</label>
+        <select formControlName="targetClass" class="form-select">
+          <option [ngValue]="10">Class 10</option>
+          <option [ngValue]="11">Class 11</option>
+          <option [ngValue]="12">Class 12</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required">Subject / Course</label>
+        <select formControlName="subjectId" class="form-select">
+          @for (sub of subjects(); track sub.id) {
+            <option [ngValue]="sub.id">{{ sub.name }} (Class {{ sub.targetClass }})</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Submission Deadline (Due Date)</label>
+      <input type="date" formControlName="dueDate" class="form-input" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label required">Assignment Instructions / Questions</label>
+      <textarea formControlName="description" class="form-textarea" rows="4" placeholder="Detail the questions, textbook page numbers, and instructions..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline" (click)="isModalOpen.set(false)">Cancel</button>
+      <button type="submit" class="btn btn-primary" [disabled]="homeworkForm.invalid">
+        Assign Homework
+      </button>
+    </div>
+  </form>
+</app-modal>

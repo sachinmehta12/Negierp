@@ -1,0 +1,6 @@
+@use '../../../../styles.scss' as *;
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+}

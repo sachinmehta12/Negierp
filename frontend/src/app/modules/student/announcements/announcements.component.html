@@ -1,0 +1,50 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Broadcast Notices & Bulletins</h1>
+      <p class="page-subtitle">Official communications, holiday alerts, and examination announcements</p>
+    </div>
+  </div>
+
+  <!-- Search Filter -->
+  <div class="filter-card">
+    <input 
+      type="text" 
+      [ngModel]="searchQuery()" 
+      (ngModelChange)="searchQuery.set($event)" 
+      placeholder="Search notice titles or contents..." 
+      class="form-input search-input" />
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading notices...</p>
+    </div>
+  } @else {
+    <div class="announcements-grid mt-6">
+      @for (ann of filteredAnnouncements(); track ann.id) {
+        <div class="notice-card" [attr.data-priority]="ann.priority">
+          <div class="notice-card-header">
+            <span class="priority-badge" [attr.data-priority]="ann.priority">
+              {{ ann.priority }}
+            </span>
+            <span class="notice-date">{{ ann.createdAt | date:'mediumDate' }}</span>
+          </div>
+
+          <h2 class="notice-title">{{ ann.title }}</h2>
+          <div class="notice-body">{{ ann.content }}</div>
+
+          <div class="notice-footer">
+            <span class="target-tag">Audience: {{ ann.targetClass === 'All' ? 'All Institute' : 'Class ' + ann.targetClass }}</span>
+            <span class="author-tag">Posted by: {{ ann.createdBy?.username || 'Institute' }}</span>
+          </div>
+        </div>
+      } @empty {
+        <div class="empty-state">
+          <p>No notices found matching your query.</p>
+        </div>
+      }
+    </div>
+  }
+</div>

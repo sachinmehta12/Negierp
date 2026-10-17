@@ -1,0 +1,227 @@
+<div class="register-page">
+  <div class="register-card">
+    <!-- Header -->
+    <div class="register-header">
+      <div class="brand-badge">
+        <img src="assets/logo.png" alt="Logo" class="brand-avatar" onerror="this.src='favicon.png'">
+        <div>
+          <h2>NEGI TUTORIALS</h2>
+          <p class="tagline">Learn • Grow • Achieve</p>
+        </div>
+      </div>
+      <p class="register-subtext">Institute Portal Account Registration</p>
+    </div>
+
+    <!-- Role Selection Tabs -->
+    <div class="role-tabs">
+      <button
+        type="button"
+        class="role-tab"
+        [class.active]="activeTab() === 'student'"
+        (click)="setTab('student')">
+        Student Registration
+      </button>
+      <button
+        type="button"
+        class="role-tab"
+        [class.active]="activeTab() === 'mentor'"
+        (click)="setTab('mentor')">
+        Faculty / Mentor
+      </button>
+    </div>
+
+    <!-- Student Registration Form -->
+    @if (activeTab() === 'student') {
+      <form [formGroup]="studentForm" (ngSubmit)="onStudentSubmit()" class="register-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">First Name *</label>
+            <input type="text" formControlName="firstName" class="form-control" [class.is-invalid]="studentForm.get('firstName')?.invalid && studentForm.get('firstName')?.touched" placeholder="First name" />
+            @if (studentForm.get('firstName')?.invalid && studentForm.get('firstName')?.touched) {
+              <div class="field-error">First name is required</div>
+            }
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name *</label>
+            <input type="text" formControlName="lastName" class="form-control" [class.is-invalid]="studentForm.get('lastName')?.invalid && studentForm.get('lastName')?.touched" placeholder="Last name" />
+            @if (studentForm.get('lastName')?.invalid && studentForm.get('lastName')?.touched) {
+              <div class="field-error">Last name is required</div>
+            }
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Username *</label>
+            <input type="text" formControlName="username" class="form-control" [class.is-invalid]="studentForm.get('username')?.invalid && studentForm.get('username')?.touched" placeholder="Portal username" />
+            @if (studentForm.get('username')?.invalid && studentForm.get('username')?.touched) {
+              <div class="field-error">Username is required (min 3 chars)</div>
+            }
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address *</label>
+            <input type="email" formControlName="email" class="form-control" [class.is-invalid]="studentForm.get('email')?.invalid && studentForm.get('email')?.touched" placeholder="Email address" />
+            @if (studentForm.get('email')?.invalid && studentForm.get('email')?.touched) {
+              <div class="field-error">Valid email address is required</div>
+            }
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Password *</label>
+            <input type="password" formControlName="password" class="form-control" [class.is-invalid]="studentForm.get('password')?.invalid && studentForm.get('password')?.touched" placeholder="Min 6 characters" />
+            @if (studentForm.get('password')?.invalid && studentForm.get('password')?.touched) {
+              <div class="field-error">Password must be at least 6 characters</div>
+            }
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select formControlName="gender" class="form-select">
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Target Class *</label>
+            <select formControlName="targetClass" class="form-select">
+              <option [value]="10">Class 10 (Secondary Board)</option>
+              <option [value]="11">Class 11 (Senior Secondary)</option>
+              <option [value]="12">Class 12 (Board & Entrances)</option>
+            </select>
+          </div>
+
+          @if (isHigherSecondary) {
+            <div class="form-group">
+              <label class="form-label">Academic Stream *</label>
+              <select formControlName="streamId" class="form-select">
+                <option [value]="0">-- Select Academic Stream --</option>
+                @for (stream of streams(); track stream.id) {
+                  <option [value]="stream.id">{{ stream.name }} ({{ stream.code }})</option>
+                }
+              </select>
+            </div>
+          }
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Contact Number</label>
+            <input type="text" formControlName="contactNumber" class="form-control" placeholder="+91 98765 43210" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parent / Guardian Name</label>
+            <input type="text" formControlName="parentName" class="form-control" placeholder="Parent name" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Residential Address</label>
+          <input type="text" formControlName="address" class="form-control" placeholder="City, State, PIN" />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-submit" [disabled]="isLoading">
+          @if (isLoading) {
+            <span class="spinner"></span> Registering Student...
+          } @else {
+            Complete Student Registration
+          }
+        </button>
+      </form>
+    }
+
+    <!-- Mentor Registration Form -->
+    @if (activeTab() === 'mentor') {
+      <form [formGroup]="mentorForm" (ngSubmit)="onMentorSubmit()" class="register-form">
+        <div class="form-group">
+          <label class="form-label">Faculty Username *</label>
+          <input type="text" formControlName="username" class="form-control" [class.is-invalid]="mentorForm.get('username')?.invalid && mentorForm.get('username')?.touched" placeholder="e.g. dr.joshi or er.negi" />
+          @if (mentorForm.get('username')?.invalid && mentorForm.get('username')?.touched) {
+            <div class="field-error">Username is required (min 3 chars)</div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Official Email Address *</label>
+          <input type="email" formControlName="email" class="form-control" [class.is-invalid]="mentorForm.get('email')?.invalid && mentorForm.get('email')?.touched" placeholder="faculty@negitutorials.com" />
+          @if (mentorForm.get('email')?.invalid && mentorForm.get('email')?.touched) {
+            <div class="field-error">Valid email address is required</div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <input type="password" formControlName="password" class="form-control" [class.is-invalid]="mentorForm.get('password')?.invalid && mentorForm.get('password')?.touched" placeholder="Min 6 characters" />
+          @if (mentorForm.get('password')?.invalid && mentorForm.get('password')?.touched) {
+            <div class="field-error">Password must be at least 6 characters</div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Teaching Academic Stream *</label>
+          <select formControlName="streamId" class="form-select" [class.is-invalid]="mentorForm.get('streamId')?.invalid && mentorForm.get('streamId')?.touched" (change)="onMentorStreamChange()">
+            <option [value]="0">-- Choose Teaching Stream * --</option>
+            @for (stream of streams(); track stream.id) {
+              <option [value]="stream.id">{{ stream.name }} ({{ stream.code }})</option>
+            }
+            <option [value]="-1">Foundation (Class 10 Secondary Board)</option>
+          </select>
+          @if (mentorForm.get('streamId')?.invalid && mentorForm.get('streamId')?.touched) {
+            <div class="field-error">Please choose your teaching academic stream</div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Academic Designation / Specialization</label>
+          <input type="text" formControlName="designation" class="form-control" placeholder="e.g. Senior Faculty (Physics & Mathematics)" />
+        </div>
+
+        @if (mentorAvailableSubjects().length > 0) {
+          <div class="form-group">
+            <div class="flex-between">
+              <label class="form-label">Teaching Subjects Across Classes (Select 1 or more)</label>
+              <button type="button" class="btn-text-gold" (click)="selectAllMentorSubjects()">
+                Select All
+              </button>
+            </div>
+            <div class="subjects-checklist">
+              @for (sub of mentorAvailableSubjects(); track sub.id) {
+                <label class="checkbox-chip" [class.selected]="isSubjectSelected(sub.id)">
+                  <input
+                    type="checkbox"
+                    [checked]="isSubjectSelected(sub.id)"
+                    (change)="toggleMentorSubject(sub.id)" />
+                  <span>{{ sub.name }} (Cls {{ sub.targetClass }})</span>
+                </label>
+              }
+            </div>
+            <p class="field-hint">You can teach multiple subjects across Class 10, 11, or 12. Only students enrolled in your selected subjects will appear in your portal.</p>
+          </div>
+        }
+
+        <button type="submit" class="btn btn-primary btn-submit" [disabled]="isLoading">
+          @if (isLoading) {
+            <span class="spinner"></span> Registering Faculty...
+          } @else {
+            Register as Faculty Member
+          }
+        </button>
+      </form>
+    }
+
+    <!-- Footer link -->
+    <div class="register-footer">
+      <span>Already have an account?</span>
+      <a routerLink="/auth/login" class="login-link">Sign In</a>
+    </div>
+
+    <!-- Watermark -->
+    <div class="register-watermark">
+      NEGI TUTORIALS • Made by Sachin Mehta
+    </div>
+  </div>
+</div>

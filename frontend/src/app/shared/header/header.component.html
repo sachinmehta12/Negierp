@@ -1,0 +1,31 @@
+<header class="app-header">
+  <div class="header-left">
+    <!-- Hamburger button for mobile/tablet -->
+    <button type="button" class="mobile-toggle-btn" (click)="toggleSidebar.emit()" aria-label="Toggle Navigation">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+    <div class="header-portal-title">
+      <span class="portal-badge">{{ authService.currentUser()?.role | uppercase }} PORTAL</span>
+      <span class="session-year">Academic Session 2026–2027</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="live-status-badge">
+      <span class="live-dot"></span>
+      <span class="live-label">System Active</span>
+    </div>
+
+    <div class="header-date">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      <span>{{ currentTime() | date:'EEE, d MMM • h:mm:ss a' }}</span>
+    </div>
+
+    @if (authService.currentUser(); as user) {
+      <div class="header-user-badge">
+        <div class="avatar-mini">{{ user.username[0].toUpperCase() }}</div>
+        <span class="username-mini">{{ user.username }}</span>
+      </div>
+    }
+  </div>
+</header>

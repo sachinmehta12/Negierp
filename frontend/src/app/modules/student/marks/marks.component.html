@@ -1,0 +1,86 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">My Exam Results & Academic Performance</h1>
+      <p class="page-subtitle">Official test marksheets, calculated letter grades, and mentor evaluations</p>
+    </div>
+  </div>
+
+  <!-- KPI Stats Bar -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-label">Tests Conducted</span>
+      <span class="stat-value text-slate-800">{{ marksList().length }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Tests Appeared</span>
+      <span class="stat-value text-blue-600">{{ totalAppeared() }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Tests Passed</span>
+      <span class="stat-value text-emerald-600">{{ passedCount() }}</span>
+    </div>
+    <div class="stat-card highlight">
+      <span class="stat-label">Cumulative Academic Average</span>
+      <span class="stat-value text-indigo-700 font-extrabold">{{ overallAverage() }}%</span>
+      <span class="stat-hint">Across all verified subjects</span>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading exam results...</p>
+    </div>
+  } @else {
+    <div class="section-card mt-6">
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Exam Name</th>
+              <th>Type</th>
+              <th>Course / Subject</th>
+              <th>Exam Date</th>
+              <th>Marks Scored</th>
+              <th>Grade</th>
+              <th>Mentor Feedback</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of marksList(); track m.id) {
+              <tr>
+                <td>
+                  <div class="font-bold text-slate-900">{{ m.exam?.title }}</div>
+                </td>
+                <td><span class="badge badge-info">{{ m.exam?.examType }}</span></td>
+                <td><span class="font-semibold text-slate-700">{{ m.exam?.subject?.name }}</span></td>
+                <td>{{ m.exam?.examDate | date:'mediumDate' }}</td>
+                <td>
+                  @if (m.isAbsent) {
+                    <span class="font-bold text-rose-600">Absent</span>
+                  } @else {
+                    <span class="font-bold text-slate-900">{{ m.marksObtained }}</span>
+                    <span class="text-xs text-slate-400"> / {{ m.exam?.maxMarks }}</span>
+                  }
+                </td>
+                <td>
+                  <span class="grade-badge" [attr.data-grade]="m.grade">
+                    {{ m.grade }}
+                  </span>
+                </td>
+                <td class="text-xs text-slate-600">{{ m.remarks || '—' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="text-center py-8 text-slate-400">
+                  No examination results published yet.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

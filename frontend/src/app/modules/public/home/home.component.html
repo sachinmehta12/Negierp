@@ -1,0 +1,777 @@
+<div class="landing-page">
+  <!-- Top Institute Navigation Bar with Scroll Progress Tracker -->
+  <header class="public-navbar" [class.navbar-elevated]="isScrolled()">
+    <!-- Animated Scroll Progress Indicator -->
+    <div class="scroll-progress-track">
+      <div class="scroll-progress-bar" [style.width.%]="scrollProgress()"></div>
+    </div>
+
+    <div class="nav-container">
+      <div class="nav-brand" (click)="scrollToTop()" role="button" tabindex="0">
+        <div class="logo-shimmer-wrapper">
+          <img src="assets/logo.png" alt="NEGI TUTORIALS Logo" class="brand-logo" onerror="this.src='favicon.png'">
+          <div class="logo-shimmer-ring"></div>
+        </div>
+        <div class="brand-text">
+          <div class="brand-name">NEGI TUTORIALS</div>
+          <div class="brand-tagline">Learn • Grow • Achieve</div>
+        </div>
+      </div>
+
+      <nav class="nav-links">
+        <a (click)="scrollTo('courses')" class="nav-link" [class.active]="activeSection() === 'courses'">Courses & Streams</a>
+        <a (click)="scrollTo('fee-calculator')" class="nav-link highlight" [class.active]="activeSection() === 'fee-calculator'">Live Fee Estimator</a>
+        <a (click)="scrollTo('faculty')" class="nav-link" [class.active]="activeSection() === 'faculty'">Mentors</a>
+        <a (click)="scrollTo('results')" class="nav-link" [class.active]="activeSection() === 'results'">Hall of Fame</a>
+        <a (click)="scrollTo('enquiry')" class="nav-link" [class.active]="activeSection() === 'enquiry'">Admissions</a>
+      </nav>
+
+      <div class="nav-actions">
+        @if (authService.isAuthenticated()) {
+          <a [routerLink]="authService.isStudent() ? '/student/dashboard' : '/mentor/dashboard'" class="btn btn-primary btn-portal btn-shimmer desktop-only">
+            Go to My Portal &rarr;
+          </a>
+        } @else {
+          <a routerLink="/auth/login" class="btn btn-secondary btn-login desktop-only">
+            Portal Sign In
+          </a>
+          <button type="button" (click)="scrollTo('enquiry')" class="btn btn-primary btn-apply btn-shimmer desktop-only">
+            Apply for Demo
+          </button>
+        }
+
+        <!-- Mobile Hamburger Toggle Button -->
+        <button 
+          type="button" 
+          class="mobile-menu-toggle" 
+          (click)="toggleMobileMenu()" 
+          [attr.aria-expanded]="isMobileMenuOpen()" 
+          aria-label="Toggle Navigation Menu">
+          @if (!isMobileMenuOpen()) {
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          } @else {
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          }
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Drawer Backdrop Overlay -->
+    @if (isMobileMenuOpen()) {
+      <div class="mobile-drawer-backdrop" (click)="closeMobileMenu()"></div>
+    }
+
+    <!-- Mobile Sliding Navigation Drawer -->
+    <div class="mobile-nav-drawer" [class.open]="isMobileMenuOpen()">
+      <div class="mobile-drawer-header">
+        <div class="nav-brand">
+          <img src="assets/logo.png" alt="Logo" class="brand-logo-mini" onerror="this.src='favicon.png'">
+          <div>
+            <div class="brand-name">NEGI TUTORIALS</div>
+            <div class="brand-tagline">Learn • Grow • Achieve</div>
+          </div>
+        </div>
+        <button type="button" class="close-drawer-btn" (click)="closeMobileMenu()" aria-label="Close menu">✕</button>
+      </div>
+
+      <nav class="mobile-drawer-links">
+        <a (click)="scrollTo('courses')" class="mobile-link" [class.active]="activeSection() === 'courses'">
+          <span class="mobile-link-icon">📚</span>
+          <span>Courses & Streams</span>
+        </a>
+        <a (click)="scrollTo('fee-calculator')" class="mobile-link highlight" [class.active]="activeSection() === 'fee-calculator'">
+          <span class="mobile-link-icon">🧮</span>
+          <span>Live Fee Estimator</span>
+        </a>
+        <a (click)="scrollTo('faculty')" class="mobile-link" [class.active]="activeSection() === 'faculty'">
+          <span class="mobile-link-icon">👨‍🏫</span>
+          <span>Mentors Roster</span>
+        </a>
+        <a (click)="scrollTo('results')" class="mobile-link" [class.active]="activeSection() === 'results'">
+          <span class="mobile-link-icon">🏆</span>
+          <span>Hall of Fame</span>
+        </a>
+        <a (click)="scrollTo('enquiry')" class="mobile-link" [class.active]="activeSection() === 'enquiry'">
+          <span class="mobile-link-icon">📝</span>
+          <span>Admissions Enquiry</span>
+        </a>
+      </nav>
+
+      <div class="mobile-drawer-actions">
+        @if (authService.isAuthenticated()) {
+          <a [routerLink]="authService.isStudent() ? '/student/dashboard' : '/mentor/dashboard'" (click)="closeMobileMenu()" class="btn btn-primary btn-block">
+            Go to My Portal &rarr;
+          </a>
+        } @else {
+          <a routerLink="/auth/login" (click)="closeMobileMenu()" class="btn btn-secondary btn-block">
+            Portal Sign In
+          </a>
+          <button type="button" (click)="scrollTo('enquiry')" class="btn btn-primary btn-block btn-shimmer">
+            Apply for Free Demo
+          </button>
+        }
+      </div>
+
+      <div class="mobile-drawer-footer">
+        <div>📞 +91 98765 43210</div>
+        <div>📍 New Delhi, India</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Banner -->
+  <section class="hero-section">
+    <div class="hero-bg-shapes"></div>
+    <!-- Ambient Dynamic Glowing Shimmer Orbs -->
+    <div class="hero-shimmer-orb orb-1"></div>
+    <div class="hero-shimmer-orb orb-2"></div>
+    <div class="hero-grid-overlay"></div>
+
+    <div class="hero-container">
+      <!-- Official Emblem Crest Badge with Radiant Halo -->
+      <div class="hero-crest-badge reveal-on-scroll">
+        <div class="crest-halo-ring"></div>
+        <img src="assets/logo.png" alt="NEGI TUTORIALS Official Crest" class="hero-crest-img" onerror="this.src='favicon.png'">
+        <div class="crest-stars">
+          <span class="crest-star">★</span>
+          <span class="crest-caption">PREMIER COACHING INSTITUTE</span>
+          <span class="crest-star">★</span>
+        </div>
+      </div>
+
+      <div class="hero-badge shimmer-badge reveal-on-scroll">
+        <span class="badge-dot pulse-beacon"></span>
+        <span>Education through Motivation and Inspiration</span>
+        <div class="shimmer-glare"></div>
+      </div>
+
+      <h1 class="hero-title reveal-on-scroll stagger-1">
+        Empowering Students to Lead in <span class="text-gradient shining-text">Board Exams, JEE & NEET</span>
+      </h1>
+
+      <p class="hero-description reveal-on-scroll stagger-2">
+        Comprehensive academic coaching for <strong>Class 10, 11 & 12</strong> across Science (PCM/PCB), Commerce & Humanities. 
+        Small interactive batches, personalized doubt-clearing sessions, and relentless mentorship by experienced faculty.
+      </p>
+
+      <div class="hero-cta-group reveal-on-scroll stagger-3">
+        <button type="button" (click)="scrollTo('fee-calculator')" class="btn btn-primary btn-lg btn-shimmer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Calculate Tuition Fees Live
+        </button>
+        <button type="button" (click)="scrollTo('enquiry')" class="btn btn-outline btn-lg btn-shimmer-border">
+          Book Free Demo Class &rarr;
+        </button>
+        <a routerLink="/auth/login" class="btn btn-dark btn-lg">
+          Student/Faculty Portal Login
+        </a>
+      </div>
+
+      <!-- Dynamic Quick Metrics Bar -->
+      <div class="hero-stats-row">
+        <div class="hero-stat-item reveal-on-scroll stagger-1 card-shimmer">
+          <div class="stat-number shining-metric">{{ subjects().length }}</div>
+          <div class="stat-desc">Academic Subjects Offered</div>
+        </div>
+        <div class="hero-stat-item reveal-on-scroll stagger-2 card-shimmer">
+          <div class="stat-number shining-metric">{{ mentors().length }}</div>
+          <div class="stat-desc">Experienced Mentors</div>
+        </div>
+        <div class="hero-stat-item reveal-on-scroll stagger-3 card-shimmer">
+          <div class="stat-number shining-metric">{{ streams().length }}</div>
+          <div class="stat-desc">Specialized Streams</div>
+        </div>
+        <div class="hero-stat-item reveal-on-scroll stagger-4 card-shimmer">
+          <div class="stat-number shining-metric">₹0</div>
+          <div class="stat-desc">Diagnostic Assessment Fee</div>
+        </div>
+      </div>
+
+      <!-- The 3 Core Pillars From Official Emblem -->
+      <div class="hero-pillars-row reveal-on-scroll stagger-4">
+        <div class="pillar-card">
+          <div class="pillar-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          </div>
+          <div class="pillar-content">
+            <div class="pillar-title">LEARN</div>
+            <div class="pillar-desc">Concept-first NCERT Mastery & Structured Foundation</div>
+          </div>
+        </div>
+        <div class="pillar-divider"></div>
+        <div class="pillar-card">
+          <div class="pillar-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          </div>
+          <div class="pillar-content">
+            <div class="pillar-title">GROW</div>
+            <div class="pillar-desc">Daily Doubt-Solving, Mentor Guidance & Analytical Thinking</div>
+          </div>
+        </div>
+        <div class="pillar-divider"></div>
+        <div class="pillar-card">
+          <div class="pillar-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          </div>
+          <div class="pillar-content">
+            <div class="pillar-title">ACHIEVE</div>
+            <div class="pillar-desc">Board Top Percentiles, Competitive Ranks & Confident Results</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dynamic Courses & Streams Explorer -->
+  <section id="courses" class="section-courses">
+    <div class="section-container">
+      <div class="section-header reveal-on-scroll">
+        <span class="section-kicker">Curriculum & Streams</span>
+        <h2 class="section-title">Specialized Academic Programs</h2>
+        <p class="section-subtitle">Tailored NCERT board preparation and competitive foundation tracks</p>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="stream-tabs reveal-on-scroll stagger-1">
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'class10'" (click)="activeTab.set('class10')">
+          Class 10 All Subjects
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'pcm'" (click)="activeTab.set('pcm')">
+          Class 11/12 Science (PCM)
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'pcb'" (click)="activeTab.set('pcb')">
+          Class 11/12 Science (PCB)
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'comm'" (click)="activeTab.set('comm')">
+          Commerce Stream
+        </button>
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'arts'" (click)="activeTab.set('arts')">
+          Humanities / Arts
+        </button>
+      </div>
+
+      <!-- Program Details Card -->
+      <div class="program-showcase-card card-shimmer reveal-on-scroll stagger-2">
+        @if (activeTab() === 'class10') {
+          <div class="program-content">
+            <div class="program-info">
+              <span class="program-tag">Secondary Foundation</span>
+              <h3 class="program-title">Class 10 CBSE Board Excellence</h3>
+              <p class="program-desc">
+                High-yield conceptual coaching focusing on solidifying mathematical reasoning and scientific fundamentals for 90%+ board results.
+              </p>
+              <ul class="program-highlights">
+                <li>✓ Standard & Basic Mathematics with Exemplar problem-solving</li>
+                <li>✓ Science (Physics, Chemistry, Biology) with hands-on conceptual labs</li>
+                <li>✓ Social Science & English Board writing skills & map work</li>
+                <li>✓ Weekly chapter tests and 5 full-syllabus pre-board mock tests</li>
+              </ul>
+              <div class="program-footer">
+                <span class="program-fee">From ₹1,000 / month per subject</span>
+                <button type="button" (click)="setCalculatorClass(10); scrollTo('fee-calculator')" class="btn btn-sm btn-primary">
+                  Calculate Class 10 Fee &rarr;
+                </button>
+              </div>
+            </div>
+            <div class="program-subjects-preview">
+              <div class="preview-box">
+                <div class="preview-title">Key Core Subjects</div>
+                <div class="subject-chips">
+                  <span class="subject-chip">Mathematics</span>
+                  <span class="subject-chip">Science & Tech</span>
+                  <span class="subject-chip">Social Science</span>
+                  <span class="subject-chip">English Language</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (activeTab() === 'pcm') {
+          <div class="program-content">
+            <div class="program-info">
+              <span class="program-tag">Engineering Focus</span>
+              <h3 class="program-title">Class 11 & 12 Science (PCM + JEE Main)</h3>
+              <p class="program-desc">
+                Rigorous calculus, mechanics, electromagnetic physics, and inorganic/organic chemistry designed for both CBSE 95%+ marks and competitive test readiness.
+              </p>
+              <ul class="program-highlights">
+                <li>✓ Complete NCERT derivation drills and numerical problem solving</li>
+                <li>✓ Advanced JEE Main level question banks & previous 10-year papers</li>
+                <li>✓ Formula memorization sheets and weekly timed speed tests</li>
+                <li>✓ Dedicated doubt-clearing sessions every Saturday</li>
+              </ul>
+              <div class="program-footer">
+                <span class="program-fee">₹1,800 / month per core subject</span>
+                <button type="button" (click)="setCalculatorClass(12); scrollTo('fee-calculator')" class="btn btn-sm btn-primary">
+                  Calculate PCM Fee &rarr;
+                </button>
+              </div>
+            </div>
+            <div class="program-subjects-preview">
+              <div class="preview-box">
+                <div class="preview-title">Enrolled Courses</div>
+                <div class="subject-chips">
+                  <span class="subject-chip">Physics Core</span>
+                  <span class="subject-chip">Chemistry Core</span>
+                  <span class="subject-chip">Higher Mathematics</span>
+                  <span class="subject-chip">English Core</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (activeTab() === 'pcb') {
+          <div class="program-content">
+            <div class="program-info">
+              <span class="program-tag">Medical Track</span>
+              <h3 class="program-title">Class 11 & 12 Science (PCB + NEET Prep)</h3>
+              <p class="program-desc">
+                In-depth NCERT line-by-line biology mastery, organic reaction mechanisms, and physical chemistry calculations.
+              </p>
+              <ul class="program-highlights">
+                <li>✓ NCERT line-by-line diagram based biology practice</li>
+                <li>✓ Botany & Zoology high-weightage question drills</li>
+                <li>✓ Physics for medical aspirants focusing on high-accuracy shortcuts</li>
+                <li>✓ Monthly mock examinations aligned with NTA NEET pattern</li>
+              </ul>
+              <div class="program-footer">
+                <span class="program-fee">₹1,800 / month per core subject</span>
+                <button type="button" (click)="setCalculatorClass(12); scrollTo('fee-calculator')" class="btn btn-sm btn-primary">
+                  Calculate PCB Fee &rarr;
+                </button>
+              </div>
+            </div>
+            <div class="program-subjects-preview">
+              <div class="preview-box">
+                <div class="preview-title">Enrolled Courses</div>
+                <div class="subject-chips">
+                  <span class="subject-chip">Physics Core</span>
+                  <span class="subject-chip">Chemistry Core</span>
+                  <span class="subject-chip">Biology & Physiology</span>
+                  <span class="subject-chip">English Core</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (activeTab() === 'comm') {
+          <div class="program-content">
+            <div class="program-info">
+              <span class="program-tag">Finance & Business</span>
+              <h3 class="program-title">Class 11 & 12 Commerce (Accountancy & Economics)</h3>
+              <p class="program-desc">
+                Master partnership accounts, company balance sheets, micro/macro economics, and business management principles.
+              </p>
+              <ul class="program-highlights">
+                <li>✓ Step-by-step accounting ledger & journal entries mastery</li>
+                <li>✓ Microeconomics graphs and national income accounting</li>
+                <li>✓ Real-world case study solving for Business Studies</li>
+                <li>✓ Applied Mathematics & CUET preparation support</li>
+              </ul>
+              <div class="program-footer">
+                <span class="program-fee">₹1,500 - ₹1,600 / month per subject</span>
+                <button type="button" (click)="setCalculatorClass(11); scrollTo('fee-calculator')" class="btn btn-sm btn-primary">
+                  Calculate Commerce Fee &rarr;
+                </button>
+              </div>
+            </div>
+            <div class="program-subjects-preview">
+              <div class="preview-box">
+                <div class="preview-title">Enrolled Courses</div>
+                <div class="subject-chips">
+                  <span class="subject-chip">Accountancy</span>
+                  <span class="subject-chip">Economics</span>
+                  <span class="subject-chip">Business Studies</span>
+                  <span class="subject-chip">Applied Math</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (activeTab() === 'arts') {
+          <div class="program-content">
+            <div class="program-info">
+              <span class="program-tag">Civil Services Foundation</span>
+              <h3 class="program-title">Class 11 & 12 Humanities / Arts</h3>
+              <p class="program-desc">
+                Analytical writing, history timelines, political constitutions, and geography map drills with CUET exam integration.
+              </p>
+              <ul class="program-highlights">
+                <li>✓ Structured answer-writing sessions for board exams</li>
+                <li>✓ Political theory and Indian constitution analysis</li>
+                <li>✓ Indian & World History chronological revision</li>
+              </ul>
+              <div class="program-footer">
+                <span class="program-fee">₹1,400 / month per subject</span>
+                <button type="button" (click)="setCalculatorClass(11); scrollTo('fee-calculator')" class="btn btn-sm btn-primary">
+                  Calculate Arts Fee &rarr;
+                </button>
+              </div>
+            </div>
+            <div class="program-subjects-preview">
+              <div class="preview-box">
+                <div class="preview-title">Enrolled Courses</div>
+                <div class="subject-chips">
+                  <span class="subject-chip">History</span>
+                  <span class="subject-chip">Political Science</span>
+                  <span class="subject-chip">Geography</span>
+                  <span class="subject-chip">Economics</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Live Fee Estimator & Calculator -->
+  <section id="fee-calculator" class="section-calculator">
+    <div class="section-container">
+      <div class="section-header reveal-on-scroll">
+        <span class="section-kicker">Transparent Pricing</span>
+        <h2 class="section-title">Interactive Live Fee Calculator</h2>
+        <p class="section-subtitle">Select your class and coaching subjects below to calculate exact fees and scholarship discounts in real-time</p>
+      </div>
+
+      <div class="calculator-card card-shimmer reveal-on-scroll stagger-1">
+        <div class="calculator-left">
+          <div class="calc-step-title">1. Select Target Class</div>
+          <div class="class-selector-pills">
+            <button type="button" class="pill-btn" [class.selected]="calculatorClass() === 10" (click)="setCalculatorClass(10)">
+              Class 10
+            </button>
+            <button type="button" class="pill-btn" [class.selected]="calculatorClass() === 11" (click)="setCalculatorClass(11)">
+              Class 11
+            </button>
+            <button type="button" class="pill-btn" [class.selected]="calculatorClass() === 12" (click)="setCalculatorClass(12)">
+              Class 12
+            </button>
+          </div>
+
+          <div class="calc-step-title mt-6">2. Choose Coaching Subjects</div>
+          <p class="calc-hint">Select the subjects you wish to attend at NEGI TUTORIALS:</p>
+
+          <div class="subject-selection-grid">
+            @for (subj of availableCalculatorSubjects(); track subj.id) {
+              <div 
+                class="subject-check-card" 
+                [class.checked]="isSubjectSelected(subj.id)"
+                (click)="toggleSubject(subj.id)"
+              >
+                <div class="check-box">
+                  @if (isSubjectSelected(subj.id)) { ✓ }
+                </div>
+                <div class="subject-details">
+                  <div class="subj-name">{{ subj.name }}</div>
+                  <div class="subj-meta">
+                    <span class="subj-code">{{ subj.code }}</span>
+                    <span class="subj-fee">₹{{ subj.monthlyFee | number }} / mo</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="calculator-right">
+          <div class="fee-summary-box">
+            <h3 class="summary-title">Live Fee Estimate</h3>
+            <div class="summary-badge">Academic Year 2026–2027</div>
+
+            <div class="summary-row">
+              <span>Selected Subjects:</span>
+              <strong class="text-primary">{{ selectedSubjectIds().length }} Course(s)</strong>
+            </div>
+
+            <div class="summary-row">
+              <span>Monthly Tuition:</span>
+              <strong>₹{{ monthlyFeeTotal() | number }} / mo</strong>
+            </div>
+
+            <div class="summary-row">
+              <span>Gross Annual Total (10 mo):</span>
+              <span>₹{{ annualGrossFee() | number }}</span>
+            </div>
+
+            @if (scholarshipDiscountPercent() > 0) {
+              <div class="summary-row scholarship-row">
+                <span>Multi-Subject Scholarship ({{ scholarshipDiscountPercent() }}%):</span>
+                <span class="text-success">- ₹{{ scholarshipSavings() | number }}</span>
+              </div>
+            }
+
+            <div class="summary-divider"></div>
+
+            <div class="summary-total-row">
+              <div>
+                <div class="total-label">Net Annual Fee</div>
+                <div class="total-hint">Includes test series & study notes</div>
+              </div>
+              <div class="total-amount">₹{{ annualNetFee() | number }}</div>
+            </div>
+
+            <div class="summary-actions">
+              <button type="button" (click)="scrollTo('enquiry')" class="btn btn-primary btn-block btn-shimmer">
+                Lock This Fee & Inquire
+              </button>
+              <div class="fee-guarantee">
+                🛡️ Transparent fee structure with official verified receipts & installment options.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Admission Lead / Enquiry Form -->
+  <section id="enquiry" class="section-enquiry">
+    <div class="section-container">
+      <div class="enquiry-card card-shimmer reveal-on-scroll">
+        <div class="enquiry-info">
+          <span class="section-kicker text-sky">Admissions 2026–2027</span>
+          <h2 class="enquiry-title">Begin Your Success Story at NEGI TUTORIALS</h2>
+          <p class="enquiry-desc">
+            Schedule a free academic counseling session and free trial class with our lead mentors. 
+            Fill out the form and our admissions team will connect with you within 24 hours.
+          </p>
+
+          <div class="contact-badges">
+            <div class="contact-badge-item">
+              <div class="badge-icon">📍</div>
+              <div>
+                <strong>Campus Address:</strong>
+                <div>Plot 12, Sector 4, Main Road, New Delhi, India</div>
+              </div>
+            </div>
+            <div class="contact-badge-item">
+              <div class="badge-icon">📞</div>
+              <div>
+                <strong>Direct Helpline:</strong>
+                <div>+91 98765 43210 (10:00 AM - 8:00 PM)</div>
+              </div>
+            </div>
+            <div class="contact-badge-item">
+              <div class="badge-icon">✉️</div>
+              <div>
+                <strong>Admissions Email:</strong>
+                <div>contact@negitutorials.com</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="enquiry-form-container">
+          <div class="form-card-inner">
+            <h3 class="form-title">Online Admission Inquiry</h3>
+            <p class="form-subtitle">Fill your details to reserve a demo class seat</p>
+
+            @if (enquirySubmitted()) {
+              <div class="success-banner">
+                <div class="success-icon">✓</div>
+                <h4>Thank you! Enquiry Received.</h4>
+                <p>Our academic coordinator will call you shortly to confirm your demo batch schedule.</p>
+                <button type="button" class="btn btn-sm btn-secondary" (click)="enquirySubmitted.set(false)">Submit another inquiry</button>
+              </div>
+            } @else {
+              <form [formGroup]="enquiryForm" (ngSubmit)="submitEnquiry()" class="lead-form">
+                <div class="form-group">
+                  <label class="form-label">Student Full Name *</label>
+                  <input type="text" formControlName="name" class="form-control" placeholder="Enter student's name" />
+                  @if (enquiryForm.get('name')?.invalid && enquiryForm.get('name')?.touched) {
+                    <div class="error-text">Student name is required.</div>
+                  }
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group flex-1">
+                    <label class="form-label">Parent / Student Contact No *</label>
+                    <input type="tel" formControlName="phone" class="form-control" placeholder="+91 98765 43210" />
+                    @if (enquiryForm.get('phone')?.invalid && enquiryForm.get('phone')?.touched) {
+                      <div class="error-text">Valid 10-digit phone number is required.</div>
+                    }
+                  </div>
+
+                  <div class="form-group flex-1">
+                    <label class="form-label">Email Address (Optional)</label>
+                    <input type="email" formControlName="email" class="form-control" placeholder="name@example.com" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group flex-1">
+                    <label class="form-label">Target Class *</label>
+                    <select formControlName="targetClass" class="form-select">
+                      <option [value]="10">Class 10 (Secondary Board)</option>
+                      <option [value]="11">Class 11 (Senior Secondary)</option>
+                      <option [value]="12">Class 12 (Board + Entrance)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group flex-1">
+                    <label class="form-label">Preferred Stream</label>
+                    <select formControlName="stream" class="form-select">
+                      <option value="General">General / All Subjects (Class 10)</option>
+                      <option value="PCM">Science (PCM - Engineering)</option>
+                      <option value="PCB">Science (PCB - Medical)</option>
+                      <option value="Commerce">Commerce with Math/Accounts</option>
+                      <option value="Humanities">Humanities / Arts</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Queries or Specific Requirements</label>
+                  <textarea formControlName="message" class="form-control" rows="3" placeholder="Tell us about previous academic performance or specific areas needing attention..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-submit-lead btn-shimmer" [disabled]="isSubmittingEnquiry()">
+                  @if (isSubmittingEnquiry()) {
+                    <span class="spinner"></span> Submitting Inquiry...
+                  } @else {
+                    Submit Admission Inquiry &rarr;
+                  }
+                </button>
+              </form>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hall of Fame & Results -->
+  <section id="results" class="section-results">
+    <div class="section-container">
+      <div class="section-header reveal-on-scroll">
+        <span class="section-kicker">Proven Track Record</span>
+        <h2 class="section-title">Results & Student Testimonials</h2>
+        <p class="section-subtitle">Real scores and experiences from NEGI TUTORIALS alumni</p>
+      </div>
+
+      <div class="testimonials-grid">
+        @for (item of testimonials(); track item.id; let idx = $index) {
+          <div class="testimonial-card card-shimmer reveal-on-scroll" [class]="'stagger-' + ((idx % 4) + 1)">
+            <div class="testimonial-score shining-pill">{{ item.scoreBadge }}</div>
+            <p class="testimonial-quote">
+              "{{ item.quote }}"
+            </p>
+            <div class="testimonial-author">
+              <div class="author-name">{{ item.studentName }}</div>
+              <div class="author-batch">{{ item.batchInfo }}</div>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty-dynamic-card card-shimmer reveal-on-scroll">
+            <div class="empty-badge">Academic Session 2026–2027</div>
+            <h3 class="empty-title">Hall of Fame & Student Achievements</h3>
+            <p class="empty-desc">
+              Verified board examination percentiles, competitive test ranks, and student testimonials will be published here as scores are awarded. 
+              The institute administrator can add and manage verified testimonials anytime from the management portal.
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Faculty & Mentors Section -->
+  <section id="faculty" class="section-faculty">
+    <div class="section-container">
+      <div class="section-header reveal-on-scroll">
+        <span class="section-kicker">Expert Mentorship</span>
+        <h2 class="section-title">Learn from Passionate Educators</h2>
+        <p class="section-subtitle">Experienced teachers dedicated to conceptual clarity and student success</p>
+      </div>
+
+      <div class="faculty-grid">
+        @for (mentor of mentors(); track mentor.id; let idx = $index) {
+          <div class="faculty-card card-shimmer reveal-on-scroll" [class]="'stagger-' + ((idx % 4) + 1)">
+            <div class="faculty-avatar">{{ getInitials(mentor.username) }}</div>
+            <h3 class="faculty-name">{{ mentor.username }}</h3>
+            <div class="faculty-role">{{ getMentorDesignation(mentor) }}</div>
+            <p class="faculty-bio">{{ getMentorBio(mentor) }}</p>
+            @if (mentor.assignedSubjects && mentor.assignedSubjects.length) {
+              <div class="mentor-subjects-chips mt-3">
+                @for (sub of mentor.assignedSubjects; track sub.id) {
+                  <span class="subject-chip-mini">{{ sub.name }}</span>
+                }
+              </div>
+            }
+          </div>
+        } @empty {
+          <div class="empty-dynamic-card card-shimmer reveal-on-scroll">
+            <div class="empty-badge">Expert Faculty Roster</div>
+            <h3 class="empty-title">Mentorship Team</h3>
+            <p class="empty-desc">
+              Faculty accounts, qualifications, and curriculum allocations configured by the institute owner will be dynamically displayed here.
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Public Footer -->
+  <footer class="public-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <img src="assets/logo.png" alt="Logo" class="brand-logo-mini" onerror="this.src='favicon.png'">
+          <span>NEGI TUTORIALS</span>
+        </div>
+        <p class="footer-motto">Education through Motivation and Inspiration • Learn • Grow • Achieve</p>
+        <p class="footer-address">Plot 12, Sector 4, Main Road, New Delhi, India</p>
+        <p class="footer-contact">Phone: +91 98765 43210 • Email: contact@negitutorials.com</p>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Academic Programs</h4>
+        <a (click)="scrollTo('courses')">Class 10 CBSE Board</a>
+        <a (click)="scrollTo('courses')">Class 11 & 12 Science (PCM)</a>
+        <a (click)="scrollTo('courses')">Class 11 & 12 Science (PCB)</a>
+        <a (click)="scrollTo('courses')">Class 11 & 12 Commerce</a>
+      </div>
+
+      <div class="footer-links-col">
+        <h4>Portals & Quick Links</h4>
+        <a routerLink="/auth/login">Student & Mentor Sign In</a>
+        <a routerLink="/auth/register">New Student Registration</a>
+        <a (click)="scrollTo('fee-calculator')">Live Fee Calculator</a>
+        <a (click)="scrollTo('enquiry')">Book Free Trial Class</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div>&copy; 2026 NEGI TUTORIALS. All Rights Reserved.</div>
+      <div class="footer-watermark">Made by Sachin Mehta</div>
+    </div>
+  </footer>
+
+  <!-- Floating Glowing Back to Top Button -->
+  @if (showBackToTop()) {
+    <button 
+      type="button" 
+      class="back-to-top-btn floating-shimmer" 
+      (click)="scrollToTop()" 
+      aria-label="Scroll to top" 
+      title="Scroll back to top">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="18 15 12 9 6 15"></polyline>
+      </svg>
+      <div class="btn-shimmer-sweep"></div>
+    </button>
+  }
+</div>

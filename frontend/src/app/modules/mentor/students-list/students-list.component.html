@@ -1,0 +1,207 @@
+<div class="page-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1>Students Directory</h1>
+      <p class="page-subtitle">Manage admissions, academic enrollments, and student profiles</p>
+    </div>
+    <div class="page-actions">
+      <a routerLink="/mentor/students/new" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        New Student Admission
+      </a>
+      <button type="button" class="btn btn-secondary" (click)="apiService.downloadReport('students')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- Subject Mentor Scope Banner -->
+  @if (isMentorScoped()) {
+    <div class="mentor-scope-banner">
+      <div class="scope-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"></path><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+      </div>
+      <div class="scope-details">
+        <div class="scope-title">Subject Mentor Access</div>
+        <div class="scope-desc">
+          You are viewing students enrolled in your assigned teaching subjects across Classes 10, 11, and 12:
+        </div>
+        <div class="scope-chips">
+          @for (sub of mentorSubjects(); track sub.id) {
+            <span class="scope-chip">
+              <strong>Class {{ sub.targetClass }}</strong>: {{ sub.name }}
+            </span>
+          } @empty {
+            <span class="text-rose-600 font-bold">No subjects currently assigned to your account. Please ask the Administrator to assign your teaching subjects.</span>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Filter Bar -->
+  <div class="card filter-bar">
+    <div class="filter-group search-group">
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        (input)="onFilterChange()"
+        placeholder="Search by student name, enrollment no, or email..."
+        class="form-control"
+      />
+    </div>
+
+    <div class="filter-controls">
+      <!-- Subject Filter -->
+      <select [(ngModel)]="selectedSubject" (change)="onFilterChange()" class="form-select select-subject">
+        <option [ngValue]="null">
+          {{ isMentorScoped() ? 'All My Assigned Subjects' : 'All Subjects' }}
+        </option>
+        @if (isMentorScoped() && mentorSubjects().length > 0) {
+          @for (sub of mentorSubjects(); track sub.id) {
+            <option [value]="sub.id">{{ sub.name }} (Cls {{ sub.targetClass }})</option>
+          }
+        } @else {
+          @for (sub of allSubjects(); track sub.id) {
+            <option [value]="sub.id">{{ sub.name }} (Cls {{ sub.targetClass }})</option>
+          }
+        }
+      </select>
+
+      <select [(ngModel)]="selectedClass" (change)="onFilterChange()" class="form-select">
+        <option [ngValue]="null">All Classes</option>
+        <option [value]="10">Class 10</option>
+        <option [value]="11">Class 11</option>
+        <option [value]="12">Class 12</option>
+      </select>
+
+      <select [(ngModel)]="selectedStream" (change)="onFilterChange()" class="form-select">
+        <option [ngValue]="null">All Streams</option>
+        @for (s of streams(); track s.id) {
+          <option [value]="s.id">{{ s.name }} ({{ s.code }})</option>
+        }
+      </select>
+
+      <select [(ngModel)]="selectedStatus" (change)="onFilterChange()" class="form-select">
+        <option value="active">Active Only</option>
+        <option value="archived">Archived Only</option>
+        <option value="all">All Accounts</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Students Roster Card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        Enrolled Students ({{ students().length }})
+      </div>
+      @if (selectedSubject) {
+        <span class="badge badge-gold">Filtered by Subject</span>
+      }
+    </div>
+
+    @if (isLoading()) {
+      <div class="loading-state">Loading students directory...</div>
+    } @else if (students().length === 0) {
+      <div class="empty-state">
+        @if (isMentorScoped() && mentorSubjects().length === 0) {
+          No teaching subjects have been assigned to your mentor account yet. Please contact the administrator.
+        } @else {
+          No student profiles found matching your search and subject criteria.
+        }
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Enrollment</th>
+              <th>Student Name</th>
+              <th>Class & Stream</th>
+              <th>Enrolled Subjects</th>
+              <th>Contact Info</th>
+              <th>Fee Status</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (student of students(); track student.id) {
+              <tr>
+                <td>
+                  <a [routerLink]="['/mentor/students', student.id]" class="enrollment-link">
+                    {{ student.enrollmentNo }}
+                  </a>
+                </td>
+                <td>
+                  <div class="student-name">{{ student.firstName }} {{ student.lastName }}</div>
+                  <div class="student-email">{{ student.user?.email }}</div>
+                </td>
+                <td>
+                  <span class="badge badge-primary">Class {{ student.targetClass }}</span>
+                  @if (student.stream) {
+                    <span class="badge badge-info" style="margin-left: 6px;">{{ student.stream.code }}</span>
+                  }
+                </td>
+                <td>
+                  <div class="subject-chips-list">
+                    @for (se of student.subjectEnrollments; track se.id) {
+                      <span class="subject-badge-pill" title="Class {{ se.subject?.targetClass }}">
+                        {{ se.subject?.name }}
+                      </span>
+                    } @empty {
+                      <span class="text-muted text-xs">No subjects</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  <div>{{ student.contactNumber || 'N/A' }}</div>
+                  <div class="text-muted" style="font-size: 0.75rem;">Parent: {{ student.parentName || 'N/A' }}</div>
+                </td>
+                <td>
+                  @if (student.feeStructures && student.feeStructures.length > 0) {
+                    @let fs = student.feeStructures[0];
+                    <div>Due: <strong>₹{{ fs.dueAmount | number }}</strong></div>
+                    <span class="badge" [ngClass]="{
+                      'badge-success': fs.status === 'Paid',
+                      'badge-warning': fs.status === 'Partial',
+                      'badge-danger': fs.status === 'Pending' || fs.status === 'Overdue'
+                    }">{{ fs.status }}</span>
+                  } @else {
+                    <span class="text-muted">Not Set</span>
+                  }
+                </td>
+                <td>
+                  @if (student.user?.isActive) {
+                    <span class="badge badge-success">Active</span>
+                  } @else {
+                    <span class="badge badge-neutral">Archived</span>
+                  }
+                </td>
+                <td style="text-align: right;">
+                  <div class="action-buttons">
+                    <a [routerLink]="['/mentor/students', student.id]" class="btn btn-sm btn-secondary" title="View Full Profile">
+                      View
+                    </a>
+                    <a [routerLink]="['/mentor/students', student.id, 'edit']" class="btn btn-sm btn-secondary" title="Edit Student">
+                      Edit
+                    </a>
+                    <button type="button" class="btn btn-sm" [ngClass]="student.user?.isActive ? 'btn-secondary' : 'btn-primary'" (click)="toggleActive(student)" title="Toggle Active / Archive">
+                      {{ student.user?.isActive ? 'Archive' : 'Activate' }}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" (click)="deleteStudent(student)" title="Delete Student">
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

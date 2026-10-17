@@ -1,0 +1,381 @@
+<div class="page-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title-group">
+      <h1>Institute Administration Dashboard</h1>
+      <p class="page-subtitle">Real-time academic performance, attendance, and fee tracking</p>
+    </div>
+    <div class="page-actions">
+      <button type="button" class="btn btn-primary" (click)="openQuickPayment()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        Quick Fee Receipt
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="openQuickNotice()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        Broadcast Notice
+      </button>
+      <a routerLink="/mentor/students/new" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        Admit Student
+      </a>
+      <a routerLink="/mentor/attendance" class="btn btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        Take Attendance
+      </a>
+      <button type="button" class="btn btn-icon" (click)="refreshDashboard()" title="Refresh Dashboard Data">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Primary Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon primary">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      </div>
+      <div>
+        <div class="stat-value">{{ metrics().totalStudents || 0 }}</div>
+        <div class="stat-label">Total Enrolled Students</div>
+        <div class="stat-sub">Cl 10: {{ metrics().class10Count || 0 }} | Cl 11: {{ metrics().class11Count || 0 }} | Cl 12: {{ metrics().class12Count || 0 }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon success">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+      </div>
+      <div>
+        <div class="stat-value">₹{{ (metrics().totalFeeCollected || 0) | number }}</div>
+        <div class="stat-label">Fee Verified & Collected</div>
+        <div class="stat-sub text-success">Total Due: ₹{{ (metrics().totalFeeDue || 0) | number }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon info">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      </div>
+      <div>
+        <div class="stat-value">{{ metrics().avgAttendance || 0 }}%</div>
+        <div class="stat-label">Overall Attendance Rate</div>
+        <div class="stat-sub">Across All Regular Batches</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon warning">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      </div>
+      <div>
+        <div class="stat-value">{{ metrics().pendingFeesCount || 0 }}</div>
+        <div class="stat-label">Payments Awaiting Verification</div>
+        <div class="stat-sub text-warning">₹{{ (metrics().pendingFeesTotal || 0) | number }} to review</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Dynamic Analytics Widget Row -->
+  <div class="analytics-row">
+    <!-- Fee Recovery Progress Card -->
+    <div class="analytics-card">
+      <div class="analytics-header">
+        <div class="analytics-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line></svg>
+          Annual Fee Recovery Efficiency
+        </div>
+        <span class="badge badge-success">{{ feeRecoveryPercentage() }}% Collected</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-fill fee-fill" [style.width.%]="feeRecoveryPercentage()"></div>
+      </div>
+      <div class="analytics-meta">
+        <span>Collected: <strong>₹{{ (metrics().totalFeeCollected || 0) | number }}</strong></span>
+        <span>Outstanding Due: <strong class="text-warning">₹{{ (metrics().totalFeeDue || 0) | number }}</strong></span>
+      </div>
+    </div>
+
+    <!-- Student Batch Distribution Card -->
+    <div class="analytics-card">
+      <div class="analytics-header">
+        <div class="analytics-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Batch Breakdown (Class 10, 11, 12)
+        </div>
+        <span class="analytics-count-label">{{ metrics().totalStudents || 0 }} Active Students</span>
+      </div>
+      <div class="segmented-progress">
+        <div class="seg-fill seg-10" [style.width.%]="class10Percentage()" title="Class 10"></div>
+        <div class="seg-fill seg-11" [style.width.%]="class11Percentage()" title="Class 11"></div>
+        <div class="seg-fill seg-12" [style.width.%]="class12Percentage()" title="Class 12"></div>
+      </div>
+      <div class="batch-legend">
+        <span class="legend-item"><span class="legend-dot dot-10"></span> Class 10 ({{ metrics().class10Count || 0 }})</span>
+        <span class="legend-item"><span class="legend-dot dot-11"></span> Class 11 ({{ metrics().class11Count || 0 }})</span>
+        <span class="legend-item"><span class="legend-dot dot-12"></span> Class 12 ({{ metrics().class12Count || 0 }})</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two Column Layout -->
+  <div class="dashboard-grid">
+    <!-- Left Column: Today's Classes & Recent Exams -->
+    <div class="grid-col">
+      <!-- Today's Timetable Classes -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Today's Schedule ({{ todayName() }})
+          </div>
+          <a routerLink="/mentor/timetable" class="card-link">View Full Timetable &rarr;</a>
+        </div>
+
+        @if (todayClasses().length === 0) {
+          <div class="empty-state">No coaching sessions scheduled for today.</div>
+        } @else {
+          <div class="classes-list">
+            @for (slot of todayClasses(); track slot.id) {
+              <div class="schedule-item">
+                <div class="schedule-time">
+                  <span class="time-badge">{{ slot.startTime }} - {{ slot.endTime }}</span>
+                </div>
+                <div class="schedule-info">
+                  <div class="schedule-title">{{ slot.subject?.name }}</div>
+                  <div class="schedule-meta">
+                    <span class="badge badge-primary">Class {{ slot.targetClass }}</span>
+                    <span>{{ slot.roomNo }}</span>
+                    <span>Mentor: {{ slot.mentorName }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Recent Examinations -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            Recent & Upcoming Examinations
+          </div>
+          <a routerLink="/mentor/exams" class="card-link">Manage Exams &rarr;</a>
+        </div>
+
+        @if (recentExams().length === 0) {
+          <div class="empty-state">No examinations created yet.</div>
+        } @else {
+          <div class="exams-list">
+            @for (exam of recentExams(); track exam.id) {
+              <div class="exam-row">
+                <div class="exam-meta">
+                  <div class="exam-title">{{ exam.title }}</div>
+                  <div class="exam-sub">
+                    <span>{{ exam.subject?.name }}</span> • <span>Class {{ exam.targetClass }}</span> • <span>Max: {{ exam.maxMarks }} pts</span>
+                  </div>
+                </div>
+                <div class="exam-actions">
+                  <span class="exam-date">{{ exam.examDate | date:'mediumDate' }}</span>
+                  <a [routerLink]="['/mentor/exams', exam.id, 'marks']" class="btn btn-sm btn-secondary">Record Marks</a>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Right Column: Recent Payments & Announcements -->
+    <div class="grid-col">
+      <!-- Recent Fee Receipts & Payments -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            Recent Fee Transactions
+          </div>
+          <a routerLink="/mentor/fees" class="card-link">Fee Register &rarr;</a>
+        </div>
+
+        @if (recentPayments().length === 0) {
+          <div class="empty-state">No fee payments recorded yet.</div>
+        } @else {
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Receipt</th>
+                  <th>Student</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of recentPayments(); track p.id) {
+                  <tr>
+                    <td>
+                      <a [routerLink]="['/mentor/fees/receipt', p.id]" class="receipt-link">#{{ p.receiptNo }}</a>
+                    </td>
+                    <td>
+                      <strong>{{ p.student?.firstName }} {{ p.student?.lastName }}</strong>
+                      <div class="text-muted" style="font-size: 0.75rem;">Class {{ p.student?.targetClass }}</div>
+                    </td>
+                    <td><strong>₹{{ p.amount | number }}</strong></td>
+                    <td>
+                      @if (p.isVerified) {
+                        <span class="badge badge-success">Verified</span>
+                      } @else {
+                        <span class="badge badge-warning">Awaiting Tick</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <!-- Institute Announcements -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            Live Announcements Board
+          </div>
+          <a routerLink="/mentor/announcements" class="card-link">Broadcast &rarr;</a>
+        </div>
+
+        @if (recentAnnouncements().length === 0) {
+          <div class="empty-state">No active announcements.</div>
+        } @else {
+          <div class="announcements-list">
+            @for (ann of recentAnnouncements(); track ann.id) {
+              <div class="announcement-item">
+                <div class="ann-header">
+                  <span class="ann-title">{{ ann.title }}</span>
+                  <span class="badge" [ngClass]="{
+                    'badge-danger': ann.priority === 'Urgent',
+                    'badge-warning': ann.priority === 'Important',
+                    'badge-neutral': ann.priority === 'Normal'
+                  }">{{ ann.priority }}</span>
+                </div>
+                <p class="ann-content">{{ ann.content }}</p>
+                <div class="ann-footer">
+                  <span>Target: Class {{ ann.targetClass }}</span> • <span>{{ ann.createdAt | date:'mediumDate' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Fee Payment Modal -->
+<app-modal [isOpen]="isPaymentModalOpen()" (close)="isPaymentModalOpen.set(false)" title="⚡ Record Quick Tuition Payment" maxWidth="560px">
+  <form [formGroup]="quickPaymentForm" (ngSubmit)="submitQuickPayment()" id="quickPaymentForm">
+    <div class="form-group mb-4">
+      <label class="form-label font-bold">Select Enrolled Student <span class="text-danger">*</span></label>
+      <select class="form-control" formControlName="studentId">
+        <option [value]="0" disabled>-- Choose Student --</option>
+        @for (stu of studentsRoster(); track stu.id) {
+          <option [value]="stu.id">{{ stu.firstName }} {{ stu.lastName }} (Class {{ stu.targetClass }} • {{ stu.enrollmentNo }})</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-row mb-4">
+      <div class="form-group col">
+        <label class="form-label font-bold">Amount (₹) <span class="text-danger">*</span></label>
+        <input type="number" class="form-control" formControlName="amount" placeholder="e.g. 2500" min="1">
+      </div>
+      <div class="form-group col">
+        <label class="form-label font-bold">Payment Date <span class="text-danger">*</span></label>
+        <input type="date" class="form-control" formControlName="paymentDate">
+      </div>
+    </div>
+
+    <div class="form-row mb-4">
+      <div class="form-group col">
+        <label class="form-label font-bold">Payment Mode <span class="text-danger">*</span></label>
+        <select class="form-control" formControlName="paymentMode">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI / GooglePay / PhonePe</option>
+          <option value="Cheque">Bank Cheque</option>
+          <option value="NetBanking">Net Banking / NEFT</option>
+          <option value="Card">Debit / Credit Card</option>
+        </select>
+      </div>
+      <div class="form-group col">
+        <label class="form-label">Transaction / Cheque No.</label>
+        <input type="text" class="form-control" formControlName="referenceNo" placeholder="e.g. UTR-9823412">
+      </div>
+    </div>
+
+    <div class="form-group mb-2">
+      <label class="form-label">Internal Remarks / Notes</label>
+      <input type="text" class="form-control" formControlName="remarks" placeholder="e.g. Term 1 installment">
+    </div>
+  </form>
+
+  <div modal-footer class="modal-btn-row">
+    <button type="button" class="btn btn-secondary" (click)="isPaymentModalOpen.set(false)">Cancel</button>
+    <button type="submit" form="quickPaymentForm" class="btn btn-primary" [disabled]="isSubmitting() || quickPaymentForm.invalid">
+      @if (isSubmitting()) {
+        <span class="btn-spinner"></span> Recording...
+      } @else {
+        Record Fee Receipt
+      }
+    </button>
+  </div>
+</app-modal>
+
+<!-- Quick Notice / Announcement Modal -->
+<app-modal [isOpen]="isNoticeModalOpen()" (close)="isNoticeModalOpen.set(false)" title="📢 Broadcast Announcement to Students" maxWidth="560px">
+  <form [formGroup]="quickNoticeForm" (ngSubmit)="submitQuickNotice()" id="quickNoticeForm">
+    <div class="form-group mb-4">
+      <label class="form-label font-bold">Announcement Title <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" formControlName="title" placeholder="e.g. Extra Physics Revision Class Tomorrow">
+    </div>
+
+    <div class="form-row mb-4">
+      <div class="form-group col">
+        <label class="form-label font-bold">Target Audience <span class="text-danger">*</span></label>
+        <select class="form-control" formControlName="targetClass">
+          <option value="All">All Classes (General Notice)</option>
+          <option value="10">Class 10 Batch</option>
+          <option value="11">Class 11 Batch</option>
+          <option value="12">Class 12 Batch</option>
+        </select>
+      </div>
+      <div class="form-group col">
+        <label class="form-label font-bold">Priority Level <span class="text-danger">*</span></label>
+        <select class="form-control" formControlName="priority">
+          <option value="Normal">Normal</option>
+          <option value="Important">Important</option>
+          <option value="Urgent">Urgent Alert</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group mb-2">
+      <label class="form-label font-bold">Notice Message Content <span class="text-danger">*</span></label>
+      <textarea class="form-control" formControlName="content" rows="4" placeholder="Type the announcement details here..."></textarea>
+    </div>
+  </form>
+
+  <div modal-footer class="modal-btn-row">
+    <button type="button" class="btn btn-secondary" (click)="isNoticeModalOpen.set(false)">Cancel</button>
+    <button type="submit" form="quickNoticeForm" class="btn btn-primary" [disabled]="isSubmitting() || quickNoticeForm.invalid">
+      @if (isSubmitting()) {
+        <span class="btn-spinner"></span> Publishing...
+      } @else {
+        Publish Announcement
+      }
+    </button>
+  </div>
+</app-modal>

@@ -1,0 +1,101 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Submit Course & Stream Change Request</h1>
+      <p class="page-subtitle">Request formal modifications to your academic stream, registered subjects, or fee allocations</p>
+    </div>
+  </div>
+
+  <div class="request-layout mt-6">
+    <!-- Submit New Request Form Card -->
+    <div class="section-card">
+      <h2 class="section-title">New Formal Request</h2>
+      <p class="section-subtitle">Mentors will review your application and unlock your portal upon approval</p>
+
+      <form [formGroup]="requestForm" (ngSubmit)="submitRequest()" class="modal-form mt-4">
+        <div class="form-group">
+          <label class="form-label required">Request Category</label>
+          <select formControlName="requestType" class="form-select">
+            <option value="Change Academic Stream">Change Academic Stream (e.g. PCM to PCB / Commerce)</option>
+            <option value="Add/Drop Coaching Subject">Add / Drop Coaching Subject</option>
+            <option value="Fee Concession Review">Fee Concession / Installment Review</option>
+            <option value="Batch Timing Reschedule">Batch Timing Reschedule</option>
+            <option value="Other Academic Request">Other Academic Request</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label required">Detailed Reason & Application</label>
+          <textarea 
+            formControlName="details" 
+            class="form-textarea" 
+            rows="4" 
+            placeholder="Explain why you wish to make this change (e.g. Career realignment toward Medical/NEET entrance, subject difficulty, scheduling conflicts)..."></textarea>
+          @if (requestForm.get('details')?.touched && requestForm.get('details')?.invalid) {
+            <span class="form-error">Please provide a detailed explanation (minimum 10 characters)</span>
+          }
+        </div>
+
+        <div>
+          <button type="submit" class="btn btn-primary" [disabled]="requestForm.invalid || isSubmitting()">
+            {{ isSubmitting() ? 'Submitting...' : '🚀 Submit Request to Mentor' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Past Requests History Table Card -->
+    <div class="section-card">
+      <h2 class="section-title">Application Status & History</h2>
+      <p class="section-subtitle">Real-time status updates on submitted requests</p>
+
+      @if (isLoading()) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading past requests...</p>
+        </div>
+      } @else {
+        <div class="table-responsive mt-4">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Mentor Evaluation Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (req of pastRequests(); track req.id) {
+                <tr>
+                  <td>{{ req.createdAt | date:'mediumDate' }}</td>
+                  <td>
+                    <span class="font-bold text-slate-800">{{ req.requestType }}</span>
+                    <div class="text-xs text-slate-500 line-clamp-1">{{ req.details }}</div>
+                  </td>
+                  <td>
+                    <span class="badge"
+                      [class.badge-warning]="req.status === 'Pending'"
+                      [class.badge-success]="req.status === 'Approved'"
+                      [class.badge-danger]="req.status === 'Rejected'">
+                      {{ req.status }}
+                    </span>
+                  </td>
+                  <td class="text-xs text-slate-600">
+                    {{ req.mentorRemarks || (req.status === 'Pending' ? 'Under Review' : '—') }}
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="4" class="text-center py-8 text-slate-400">
+                    No change requests submitted yet.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>
