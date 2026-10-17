@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from './config/env';
+import { sequelize } from './models';
 import apiRoutes from './routes';
 import { errorHandler } from './middlewares/error.middleware';
 
@@ -31,6 +32,7 @@ app.get('/api/health', (_req, res) => {
     status: 'ok',
     app: config.institute.name,
     tagline: config.institute.tagline,
+    database: 'MySQL',
     timestamp: new Date().toISOString()
   });
 });
@@ -38,7 +40,7 @@ app.get('/api/health', (_req, res) => {
 // Root API Information
 app.get('/', (_req, res) => {
   res.json({
-    message: 'Welcome to NEGI TUTORIALS REST API Engine',
+    message: 'Welcome to NEGI TUTORIALS REST API Engine (MySQL)',
     version: '1.0.0',
     documentation: '/api/health',
     status: 'online'
@@ -52,13 +54,32 @@ app.use('/api', apiRoutes);
 app.use(errorHandler);
 
 const PORT = config.port;
-app.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`  🚀 NEGI TUTORIALS REST API Server Running`);
-  console.log(`  📡 Port: http://localhost:${PORT}`);
-  console.log(`  🩺 Health: http://localhost:${PORT}/api/health`);
-  console.log(`  🛡️ Mode: ${config.nodeEnv}`);
-  console.log(`======================================================\n`);
-});
+
+async function startServer() {
+  try {
+    // Authenticate Sequelize connection to MySQL
+    await sequelize.authenticate();
+    console.log('✅ Sequelize MySQL Connection established successfully.');
+
+    // Keep sequelize.sync({ alter: true }) to create and update MySQL tables
+    await sequelize.sync({ alter: true });
+    console.log('✅ Sequelize Models Synced: MySQL Tables Verified and Created Successfully ({ alter: true }).');
+
+    app.listen(PORT, () => {
+      console.log(`\n======================================================`);
+      console.log(`  🚀 NEGI TUTORIALS REST API Server Running`);
+      console.log(`  📡 Port: http://localhost:${PORT}`);
+      console.log(`  🩺 Health: http://localhost:${PORT}/api/health`);
+      console.log(`  🛡️ Mode: ${config.nodeEnv}`);
+      console.log(`  🗄️ Database: MySQL (${config.dbHost}:${config.dbPort}/${config.dbName})`);
+      console.log(`======================================================\n`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to connect to MySQL database or sync Sequelize models:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export default app;

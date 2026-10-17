@@ -8,7 +8,16 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || 'negi-tutorials-jwt-secret-key-2026-production-grade',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/negi_tutorials?schema=public',
+  
+  // MySQL Database Configuration
+  dbHost: process.env.DB_HOST || 'localhost',
+  dbPort: parseInt(process.env.DB_PORT || '3306', 10),
+  dbName: process.env.DB_NAME || 'negi_erp',
+  dbUser: process.env.DB_USER || 'root',
+  dbPassword: process.env.DB_PASSWORD || 'root@123',
+  
+  databaseUrl: process.env.DATABASE_URL || `mysql://${process.env.DB_USER || 'root'}:${encodeURIComponent(process.env.DB_PASSWORD || 'root@123')}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '3306'}/${process.env.DB_NAME || 'negi_erp'}`,
+  
   institute: {
     name: process.env.INSTITUTE_NAME || 'NEGI TUTORIALS',
     tagline: process.env.INSTITUTE_TAGLINE || 'Learn • Grow • Succeed',
@@ -17,3 +26,5 @@ export const config = {
     address: process.env.INSTITUTE_ADDRESS || 'Plot 12, Sector 4, Main Road, New Delhi, India'
   }
 };
+
+export default config;

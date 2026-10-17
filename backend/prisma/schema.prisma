@@ -2,7 +2,7 @@
 // Database: PostgreSQL (Neon.tech, Supabase, or local PostgreSQL compatible)
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
