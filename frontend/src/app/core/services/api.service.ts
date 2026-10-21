@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
 })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:5000/api';
+  private readonly baseUrl = 'https://negierp.onrender.com/api';
 
   // ----------------- STUDENTS -----------------
   getStudents(params?: { class?: number; stream?: number; subjectId?: number; status?: string; q?: string }): Observable<any> {
