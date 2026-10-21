@@ -241,7 +241,7 @@ ExamMark.init({
   tableName: 'exam_marks',
   timestamps: false,
   underscored: true,
-  indexes: [{ unique: true, fields: ['exam_id', 'studentId'], name: 'uq_exam_student' }]
+  indexes: [{ unique: true, fields: ['exam_id', 'student_id'], name: 'uq_exam_student' }]
 });
 
 // 12. Timetable Model
