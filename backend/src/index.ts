@@ -9,7 +9,24 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. Postman, curl, health checks)
+    if (!origin) {
+      return callback(null, true);
+    }
+    const extraOrigins = process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+      : [];
+    const allowedOrigins = [
+      'https://negierp.vercel.app',
+      'http://localhost:4200',
+      ...extraOrigins
+    ];
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

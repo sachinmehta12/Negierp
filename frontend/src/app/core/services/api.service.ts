@@ -1,13 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'https://negierp.onrender.com/api';
+  private readonly baseUrl = environment.apiUrl;
 
   // ----------------- STUDENTS -----------------
   getStudents(params?: { class?: number; stream?: number; subjectId?: number; status?: string; q?: string }): Observable<any> {

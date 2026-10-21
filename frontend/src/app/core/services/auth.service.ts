@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, tap, catchError, of } from 'rxjs';
 import { User } from '../models/entities';
 import { NotificationService } from './notification.service';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -13,7 +14,7 @@ export class AuthService {
   private readonly router = inject(Router);
   private readonly notification = inject(NotificationService);
 
-  private readonly API_URL = 'http://localhost:5000/api/auth';
+  private readonly API_URL = `${environment.apiUrl}/auth`;
 
   private readonly currentUserSignal = signal<User | null>(null);
   private readonly tokenSignal = signal<string | null>(this.getStoredToken());
