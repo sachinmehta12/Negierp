@@ -1,19 +1,24 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { SubjectChangeRequest, StudentProfile, User, Stream, sequelize } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 export class ChangeRequestController {
   static async list(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const status = (req.query.status as string) || 'Pending';
-      const requests = await prisma.subjectChangeRequest.findMany({
+      const requests = await SubjectChangeRequest.findAll({
         where: { status },
-        include: {
-          student: {
-            include: { user: true, stream: true }
+        include: [
+          {
+            model: StudentProfile,
+            as: 'student',
+            include: [
+              { model: User, as: 'user' },
+              { model: Stream, as: 'stream' }
+            ]
           }
-        },
-        orderBy: { createdAt: 'desc' }
+        ],
+        order: [['createdAt', 'DESC']]
       });
 
       res.json({ success: true, count: requests.length, requests });
@@ -36,13 +41,11 @@ export class ChangeRequestController {
         return;
       }
 
-      const request = await prisma.subjectChangeRequest.create({
-        data: {
-          studentId: student.id,
-          requestType: requestType.trim(),
-          details: details.trim(),
-          status: 'Pending'
-        }
+      const request = await SubjectChangeRequest.create({
+        studentId: student.id,
+        requestType: requestType.trim(),
+        details: details.trim(),
+        status: 'Pending'
       });
 
       res.status(201).json({ success: true, message: 'Change request submitted to mentor for review.', request });
@@ -56,9 +59,8 @@ export class ChangeRequestController {
       const reqId = Number(req.params.id);
       const { action, mentorRemarks } = req.body; // 'approve' or 'reject'
 
-      const changeReq = await prisma.subjectChangeRequest.findUnique({
-        where: { id: reqId },
-        include: { student: true }
+      const changeReq = await SubjectChangeRequest.findByPk(reqId, {
+        include: [{ model: StudentProfile, as: 'student' }]
       });
 
       if (!changeReq) {
@@ -68,24 +70,26 @@ export class ChangeRequestController {
 
       const isApprove = action === 'approve';
 
-      await prisma.$transaction(async (tx) => {
-        await tx.subjectChangeRequest.update({
-          where: { id: reqId },
-          data: {
+      await sequelize.transaction(async (t) => {
+        await changeReq.update(
+          {
             status: isApprove ? 'Approved' : 'Rejected',
             mentorRemarks: mentorRemarks?.trim() || null
-          }
-        });
+          },
+          { transaction: t }
+        );
 
         if (isApprove) {
-          // Unlock student's stream and subject selection
-          await tx.studentProfile.update({
-            where: { id: changeReq.studentId },
-            data: {
+          await StudentProfile.update(
+            {
               isStreamLocked: false,
               isSubjectLocked: false
+            },
+            {
+              where: { id: changeReq.get('studentId') },
+              transaction: t
             }
-          });
+          );
         }
       });
 
@@ -108,9 +112,9 @@ export class ChangeRequestController {
         return;
       }
 
-      const requests = await prisma.subjectChangeRequest.findMany({
+      const requests = await SubjectChangeRequest.findAll({
         where: { studentId: student.id },
-        orderBy: { createdAt: 'desc' }
+        order: [['createdAt', 'DESC']]
       });
 
       res.json({ success: true, requests });

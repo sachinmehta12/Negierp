@@ -1,5 +1,5 @@
 # NEGI TUTORIALS — Migration & Re-Architecture Task Tracker
-**From Python (Flask + SQLAlchemy + Jinja2) to Angular 19 + Node.js (Express + TypeScript) + PostgreSQL (Prisma ORM)**
+**From Python (Flask + SQLAlchemy + Jinja2) to Angular 19 + Node.js (Express + TypeScript) + MySQL (Sequelize ORM)**
 
 ---
 
@@ -10,7 +10,7 @@
 - **Architecture**:
   - **Frontend**: Angular 19 (TypeScript, SCSS, Standalone Components, Reactive Forms, Modular SaaS Layout)
   - **Backend**: Node.js + Express.js + TypeScript (REST API with JWT Auth, Role Verification, CSV Exports)
-  - **Database & ORM**: PostgreSQL (Neon.tech compatible) + Prisma ORM
+  - **Database & ORM**: MySQL + Sequelize ORM
   - **Run Commands**:
     - Backend: `npm run dev` (Runs using `nodemon --exec ts-node src/index.ts`)
     - Frontend: `npm run dev` (Runs using `ng serve`)
@@ -186,16 +186,30 @@
 - [x] **Verified Live Addition & Recalculation**:
   - Verified that admitting a student or registering immediately increments counts, updates class distribution, and calculates due amounts dynamically.
 
+### Phase 9: MySQL Database & Sequelize ORM Engine Migration (Completed)
+- [x] **Complete Transition to MySQL & Sequelize ORM**:
+  - Replaced Prisma ORM with Sequelize ORM (`sequelize` v6 + `mysql2`).
+  - Defined 17 complete Sequelize relational models in `backend/src/models/index.ts` with explicit camelCase TypeScript attributes mapped to snake_case MySQL database columns (`users`, `streams`, `subjects`, `student_profiles`, `student_subjects`, `subject_change_requests`, `attendance`, `fee_structures`, `fee_payments`, `exams`, `exam_marks`, `timetable`, `announcements`, `homework`, `student_homework_status`, `institute_settings`, `testimonials`).
+  - Configured all relational associations (One-to-One, One-to-Many, Many-to-Many via `_MentorSubjects`).
+- [x] **Controller & Service Layer Migration**:
+  - Migrated `auth.middleware.ts` to Sequelize ORM.
+  - Migrated `fee.service.ts` and `report.service.ts` to Sequelize ORM.
+  - Migrated all 16 controllers (`auth`, `student`, `attendance`, `fee`, `exam`, `faculty`, `homework`, `subject`, `stream`, `timetable`, `analytics`, `announcement`, `change-request`, `settings`, `testimonial`, `report`) from Prisma to Sequelize ORM.
+- [x] **Sequelize MySQL Seeder**:
+  - Created `backend/src/seed.ts` to connect to MySQL, sync tables via `sequelize.sync({ alter: true })`, and seed foundational administrators (`owner`, `mentor`), academic streams, and subject catalog.
+- [x] **Purge PostgreSQL and Prisma Residue**:
+  - Deleted `backend/prisma/` directory (`schema.prisma`, `schema.postgresql.prisma`, `seed.ts`, `dev.db`).
+  - Removed `@prisma/client` and `prisma` dependencies and scripts from `backend/package.json`.
+  - Deleted `backend/src/config/prisma.ts`.
+  - Updated `backend/.env` and `backend/.env.example` to pure MySQL connection settings.
+- [x] **Zero Error Compilation**:
+  - Tested backend compilation using `npx tsc --noEmit` (0 errors, exit code 0).
+
 ---
 
 ## 🟢 Current Runtime Status
 
-Both services are **currently active and running**:
+Both services are configured for production grade:
 - **Backend API**: `http://localhost:5000` (Health: `http://localhost:5000/api/health`)
 - **Frontend SPA**: `http://localhost:4200`
-- **Database**: SQLite (`backend/prisma/dev.db`) in **Dynamic Zero State** (0 students, ₹0 fees, 0% attendance).
-- **PostgreSQL Preset**: `backend/prisma/schema.postgresql.prisma` ready for Neon.tech or cloud deployment.
-
-
-
-
+- **Database**: MySQL (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`) powered by **Sequelize ORM**.

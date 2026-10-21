@@ -1,82 +1,108 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import {
+  StudentProfile,
+  User,
+  FeePayment,
+  FeeStructure,
+  Attendance,
+  SubjectChangeRequest,
+  Exam,
+  Subject,
+  Announcement,
+  Timetable,
+  ExamMark,
+  Op
+} from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AttendanceService } from '../services/attendance.service';
 
 export class AnalyticsController {
   static async getDashboard(_req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const totalStudents = await prisma.studentProfile.count({
-        where: { user: { isActive: true } }
+      const totalStudents = await StudentProfile.count({
+        include: [{ model: User, as: 'user', where: { isActive: true } }]
       });
 
-      const class10Count = await prisma.studentProfile.count({
-        where: { targetClass: 10, user: { isActive: true } }
+      const class10Count = await StudentProfile.count({
+        where: { targetClass: 10 },
+        include: [{ model: User, as: 'user', where: { isActive: true } }]
       });
-      const class11Count = await prisma.studentProfile.count({
-        where: { targetClass: 11, user: { isActive: true } }
+      const class11Count = await StudentProfile.count({
+        where: { targetClass: 11 },
+        include: [{ model: User, as: 'user', where: { isActive: true } }]
       });
-      const class12Count = await prisma.studentProfile.count({
-        where: { targetClass: 12, user: { isActive: true } }
+      const class12Count = await StudentProfile.count({
+        where: { targetClass: 12 },
+        include: [{ model: User, as: 'user', where: { isActive: true } }]
       });
 
       // Financials
-      const verifiedPayments = await prisma.feePayment.findMany({
+      const verifiedPayments = await FeePayment.findAll({
         where: { isVerified: true },
-        select: { amount: true }
+        attributes: ['amount']
       });
-      const totalFeeCollected = verifiedPayments.reduce((sum, p) => sum + p.amount, 0);
+      const totalFeeCollected = verifiedPayments.reduce((sum, p) => sum + Number(p.get('amount')), 0);
 
-      const feeStructures = await prisma.feeStructure.findMany({
-        where: { student: { user: { isActive: true } } },
-        select: { dueAmount: true }
+      const feeStructures = await FeeStructure.findAll({
+        include: [{
+          model: StudentProfile,
+          as: 'student',
+          include: [{ model: User, as: 'user', where: { isActive: true } }]
+        }],
+        attributes: ['dueAmount']
       });
-      const totalFeeDue = feeStructures.reduce((sum, f) => sum + f.dueAmount, 0);
+      const totalFeeDue = feeStructures.reduce((sum, f) => sum + Number(f.get('dueAmount')), 0);
 
-      const pendingPayments = await prisma.feePayment.findMany({
-        where: { isVerified: false, student: { user: { isActive: true } } },
-        select: { amount: true }
+      const pendingPayments = await FeePayment.findAll({
+        where: { isVerified: false },
+        include: [{
+          model: StudentProfile,
+          as: 'student',
+          include: [{ model: User, as: 'user', where: { isActive: true } }]
+        }],
+        attributes: ['amount']
       });
       const pendingFeesCount = pendingPayments.length;
-      const pendingFeesTotal = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
+      const pendingFeesTotal = pendingPayments.reduce((sum, p) => sum + Number(p.get('amount')), 0);
 
       // Attendance
-      const attendanceRecords = await prisma.attendance.findMany({
-        select: { status: true }
+      const attendanceRecords = await Attendance.findAll({
+        attributes: ['status']
       });
-      const avgAttendance = AttendanceService.calculatePercentage(attendanceRecords);
+      const plainAttendance = attendanceRecords.map(r => r.get({ plain: true }));
+      const avgAttendance = AttendanceService.calculatePercentage(plainAttendance);
 
       // Change requests
-      const pendingRequests = await prisma.subjectChangeRequest.count({
+      const pendingRequests = await SubjectChangeRequest.count({
         where: { status: 'Pending' }
       });
 
       // Recent activities
-      const recentPayments = await prisma.feePayment.findMany({
-        include: { student: true },
-        orderBy: { id: 'desc' },
-        take: 5
+      const recentPayments = await FeePayment.findAll({
+        include: [{ model: StudentProfile, as: 'student' }],
+        order: [['id', 'DESC']],
+        limit: 5
       });
 
-      const recentExams = await prisma.exam.findMany({
-        include: { subject: true },
-        orderBy: { examDate: 'desc' },
-        take: 4
+      const recentExams = await Exam.findAll({
+        include: [{ model: Subject, as: 'subject' }],
+        order: [['examDate', 'DESC']],
+        limit: 4
       });
 
-      const recentAnnouncements = await prisma.announcement.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 4
+      const recentAnnouncements = await Announcement.findAll({
+        order: [['createdAt', 'DESC']],
+        limit: 4
       });
 
       // Today's schedule
       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const todayName = daysOfWeek[new Date().getDay()];
 
-      const todayClasses = await prisma.timetable.findMany({
+      const todayClasses = await Timetable.findAll({
         where: { dayOfWeek: todayName },
-        include: { subject: true },
-        orderBy: { startTime: 'asc' }
+        include: [{ model: Subject, as: 'subject' }],
+        order: [['startTime', 'ASC']]
       });
 
       res.json({
@@ -110,30 +136,42 @@ export class AnalyticsController {
       const classStats = [];
 
       for (const c of classes) {
-        const studentCount = await prisma.studentProfile.count({
-          where: { targetClass: c, user: { isActive: true } }
+        const studentCount = await StudentProfile.count({
+          where: { targetClass: c },
+          include: [{ model: User, as: 'user', where: { isActive: true } }]
         });
 
         // Exam marks for this class
-        const marks = await prisma.examMark.findMany({
+        const marks = await ExamMark.findAll({
           where: {
             isAbsent: false,
-            marksObtained: { not: null },
-            exam: { targetClass: c }
+            marksObtained: { [Op.ne]: null }
           },
-          include: { exam: true }
+          include: [
+            {
+              model: Exam,
+              as: 'exam',
+              where: { targetClass: c }
+            }
+          ]
         });
 
-        const pcts = marks.map(m => ((m.marksObtained as number) / m.exam.maxMarks) * 100);
+        const pcts = marks.map(m => {
+          const plain = m.get({ plain: true });
+          const maxMarks = plain.exam ? plain.exam.maxMarks : 100;
+          return (Number(plain.marksObtained) / (maxMarks > 0 ? maxMarks : 100)) * 100;
+        });
+
         const avgScore = pcts.length > 0
           ? Math.round((pcts.reduce((a, b) => a + b, 0) / pcts.length) * 10) / 10
           : 0.0;
 
-        const attendanceRecords = await prisma.attendance.findMany({
+        const attendanceRecords = await Attendance.findAll({
           where: { targetClass: c },
-          select: { status: true }
+          attributes: ['status']
         });
-        const attendanceRate = AttendanceService.calculatePercentage(attendanceRecords);
+        const plainAttendance = attendanceRecords.map(r => r.get({ plain: true }));
+        const attendanceRate = AttendanceService.calculatePercentage(plainAttendance);
 
         classStats.push({
           class: c,
@@ -144,54 +182,70 @@ export class AnalyticsController {
       }
 
       // Subject performance
-      const subjects = await prisma.subject.findMany({
+      const subjects = await Subject.findAll({
         where: { isActive: true },
-        include: {
-          exams: {
-            include: {
-              marks: {
-                where: { isAbsent: false, marksObtained: { not: null } }
+        include: [
+          {
+            model: Exam,
+            as: 'exams',
+            include: [
+              {
+                model: ExamMark,
+                as: 'marks',
+                where: { isAbsent: false, marksObtained: { [Op.ne]: null } },
+                required: false
               }
-            }
+            ]
           }
-        }
+        ]
       });
 
       const subjectPerf = subjects.map(s => {
-        const allMarks = s.exams.flatMap(e => e.marks.map(m => ((m.marksObtained as number) / e.maxMarks) * 100));
+        const plain = s.get({ plain: true });
+        const allMarks = (plain.exams || []).flatMap((e: any) =>
+          (e.marks || []).map((m: any) => (Number(m.marksObtained) / (e.maxMarks || 100)) * 100)
+        );
         const avgScore = allMarks.length > 0
-          ? Math.round((allMarks.reduce((a, b) => a + b, 0) / allMarks.length) * 10) / 10
+          ? Math.round((allMarks.reduce((a: number, b: number) => a + b, 0) / allMarks.length) * 10) / 10
           : 0.0;
 
         return {
-          name: s.name,
-          class: s.targetClass,
+          name: plain.name,
+          class: plain.targetClass,
           avgScore
         };
       });
 
       // Top students
-      const studentsWithMarks = await prisma.studentProfile.findMany({
-        where: { user: { isActive: true } },
-        include: {
-          examMarks: {
-            where: { isAbsent: false, marksObtained: { not: null } },
-            include: { exam: true }
+      const studentsWithMarks = await StudentProfile.findAll({
+        include: [
+          { model: User, as: 'user', where: { isActive: true } },
+          {
+            model: ExamMark,
+            as: 'examMarks',
+            where: { isAbsent: false, marksObtained: { [Op.ne]: null } },
+            required: false,
+            include: [{ model: Exam, as: 'exam' }]
           }
-        }
+        ]
       });
 
       const studentAverages = studentsWithMarks
         .map(s => {
-          const pcts = s.examMarks.map(m => ((m.marksObtained as number) / m.exam.maxMarks) * 100);
-          const avg = pcts.length > 0 ? pcts.reduce((a, b) => a + b, 0) / pcts.length : 0;
+          const plain = s.get({ plain: true });
+          const marks = plain.examMarks || [];
+          const pcts = marks.map((m: any) => {
+            const max = m.exam ? m.exam.maxMarks : 100;
+            return (Number(m.marksObtained) / (max > 0 ? max : 100)) * 100;
+          });
+          const avg = pcts.length > 0 ? pcts.reduce((a: number, b: number) => a + b, 0) / pcts.length : 0;
           return {
-            id: s.id,
-            enrollmentNo: s.enrollmentNo,
-            fullName: `${s.firstName} ${s.lastName}`,
-            targetClass: s.targetClass,
+            id: plain.id,
+            enrollmentNo: plain.enrollmentNo,
+            fullName: `${plain.firstName} ${plain.lastName}`,
+            targetClass: plain.targetClass,
             overallAvg: Math.round(avg * 10) / 10,
-            examsCount: s.examMarks.length
+            examsCount: marks.length
           };
         })
         .filter(s => s.examsCount > 0)

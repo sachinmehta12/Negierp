@@ -1,21 +1,23 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { User, Subject, Stream, Op } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AuthService } from '../services/auth.service';
 
 export class FacultyController {
   static async list(_req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const faculty = await prisma.user.findMany({
+      const faculty = await User.findAll({
         where: {
-          role: { in: ['mentor', 'owner'] }
+          role: { [Op.in]: ['mentor', 'owner'] }
         },
-        include: {
-          assignedSubjects: {
-            include: { stream: true }
+        include: [
+          {
+            model: Subject,
+            as: 'assignedSubjects',
+            include: [{ model: Stream, as: 'stream' }]
           }
-        },
-        orderBy: { id: 'asc' }
+        ],
+        order: [['id', 'ASC']]
       });
 
       res.json({ success: true, count: faculty.length, faculty });
@@ -26,22 +28,21 @@ export class FacultyController {
 
   static async publicList(_req: any, res: Response): Promise<void> {
     try {
-      const faculty = await prisma.user.findMany({
+      const faculty = await User.findAll({
         where: {
-          role: { in: ['mentor', 'owner'] },
+          role: { [Op.in]: ['mentor', 'owner'] },
           isActive: true
         },
-        select: {
-          id: true,
-          username: true,
-          role: true,
-          designation: true,
-          bio: true,
-          assignedSubjects: {
-            select: { id: true, name: true, targetClass: true }
+        attributes: ['id', 'username', 'role', 'designation', 'bio'],
+        include: [
+          {
+            model: Subject,
+            as: 'assignedSubjects',
+            attributes: ['id', 'name', 'targetClass'],
+            through: { attributes: [] }
           }
-        },
-        orderBy: { id: 'asc' }
+        ],
+        order: [['id', 'ASC']]
       });
 
       res.json({ success: true, count: faculty.length, faculty });
@@ -58,11 +59,11 @@ export class FacultyController {
         return;
       }
 
-      const existing = await prisma.user.findFirst({
+      const existing = await User.findOne({
         where: {
-          OR: [
-            { username: { equals: username.trim() } },
-            { email: { equals: email.trim() } }
+          [Op.or]: [
+            { username: username.trim() },
+            { email: email.trim().toLowerCase() }
           ]
         }
       });
@@ -73,25 +74,27 @@ export class FacultyController {
       }
 
       const passwordHash = await AuthService.hashPassword(password);
-      const chosenSubjectIds = Array.isArray(subjectIds) ? subjectIds.map((id: number) => ({ id: Number(id) })) : [];
+      const chosenSubjectIds = Array.isArray(subjectIds) ? subjectIds.map((id: number) => Number(id)) : [];
 
-      const mentor = await prisma.user.create({
-        data: {
-          username: username.trim(),
-          email: email.trim().toLowerCase(),
-          passwordHash,
-          role: 'mentor',
-          isActive: true,
-          designation: designation ? designation.trim() : null,
-          bio: bio ? bio.trim() : null,
-          assignedSubjects: {
-            connect: chosenSubjectIds
-          }
-        },
-        include: { assignedSubjects: true }
+      const mentor = await User.create({
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
+        passwordHash,
+        role: 'mentor',
+        isActive: true,
+        designation: designation ? designation.trim() : null,
+        bio: bio ? bio.trim() : null
       });
 
-      res.status(201).json({ success: true, message: `Faculty member "${mentor.username}" created.`, mentor });
+      if (chosenSubjectIds.length > 0) {
+        await (mentor as any).setAssignedSubjects(chosenSubjectIds);
+      }
+
+      const fullMentor = await User.findByPk(mentor.get('id'), {
+        include: [{ model: Subject, as: 'assignedSubjects' }]
+      });
+
+      res.status(201).json({ success: true, message: `Faculty member "${mentor.get('username')}" created.`, mentor: fullMentor });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to create faculty member', error: err.message });
     }
@@ -102,7 +105,7 @@ export class FacultyController {
       const mentorId = Number(req.params.id);
       const { username, email, password, subjectIds, isActive, designation, bio } = req.body;
 
-      const target = await prisma.user.findUnique({ where: { id: mentorId } });
+      const target = await User.findByPk(mentorId);
       if (!target) {
         res.status(404).json({ success: false, message: 'Faculty member not found.' });
         return;
@@ -119,19 +122,17 @@ export class FacultyController {
         dataToUpdate.passwordHash = await AuthService.hashPassword(password.trim());
       }
 
+      await target.update(dataToUpdate);
+
       if (Array.isArray(subjectIds)) {
-        dataToUpdate.assignedSubjects = {
-          set: subjectIds.map((id: number) => ({ id: Number(id) }))
-        };
+        await (target as any).setAssignedSubjects(subjectIds.map(Number));
       }
 
-      const updated = await prisma.user.update({
-        where: { id: mentorId },
-        data: dataToUpdate,
-        include: { assignedSubjects: true }
+      const updated = await User.findByPk(mentorId, {
+        include: [{ model: Subject, as: 'assignedSubjects' }]
       });
 
-      res.json({ success: true, message: `Faculty member "${updated.username}" updated.`, mentor: updated });
+      res.json({ success: true, message: `Faculty member "${target.get('username')}" updated.`, mentor: updated });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to update faculty member', error: err.message });
     }
@@ -145,21 +146,19 @@ export class FacultyController {
         return;
       }
 
-      const target = await prisma.user.findUnique({ where: { id: mentorId } });
+      const target = await User.findByPk(mentorId);
       if (!target) {
         res.status(404).json({ success: false, message: 'Faculty member not found.' });
         return;
       }
 
-      const updated = await prisma.user.update({
-        where: { id: mentorId },
-        data: { isActive: !target.isActive }
-      });
+      const newStatus = !target.get('isActive');
+      await target.update({ isActive: newStatus });
 
       res.json({
         success: true,
-        message: `Faculty member "${updated.username}" ${updated.isActive ? 'activated' : 'deactivated'}.`,
-        isActive: updated.isActive
+        message: `Faculty member "${target.get('username')}" ${newStatus ? 'activated' : 'deactivated'}.`,
+        isActive: newStatus
       });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to toggle status', error: err.message });
@@ -174,15 +173,16 @@ export class FacultyController {
         return;
       }
 
-      const target = await prisma.user.findUnique({ where: { id: mentorId } });
-      if (!target || target.role === 'owner') {
+      const target = await User.findByPk(mentorId);
+      if (!target || target.get('role') === 'owner') {
         res.status(400).json({ success: false, message: 'Cannot delete institute owner account.' });
         return;
       }
 
-      await prisma.user.delete({ where: { id: mentorId } });
+      const username = target.get('username');
+      await target.destroy();
 
-      res.json({ success: true, message: `Faculty member "${target.username}" deleted.` });
+      res.json({ success: true, message: `Faculty member "${username}" deleted.` });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to delete faculty member', error: err.message });
     }

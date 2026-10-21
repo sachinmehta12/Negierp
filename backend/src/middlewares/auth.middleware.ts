@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
-import { prisma } from '../config/prisma';
+import { User, StudentProfile, Stream, StudentSubject, Subject } from '../models';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -34,25 +34,30 @@ export const authenticateJwt = async (
   }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      include: {
-        studentProfile: {
-          include: {
-            stream: true,
-            subjectEnrollments: {
-              include: { subject: true }
+    const userInstance = await User.findByPk(payload.userId, {
+      include: [
+        {
+          model: StudentProfile,
+          as: 'studentProfile',
+          include: [
+            { model: Stream, as: 'stream' },
+            {
+              model: StudentSubject,
+              as: 'subjectEnrollments',
+              include: [{ model: Subject, as: 'subject' }]
             }
-          }
+          ]
         },
-        assignedSubjects: true
-      }
+        { model: Subject, as: 'assignedSubjects' }
+      ]
     });
 
-    if (!user) {
+    if (!userInstance) {
       res.status(401).json({ success: false, message: 'User not found.' });
       return;
     }
+
+    const user = userInstance.get({ plain: true });
 
     if (!user.isActive) {
       res.status(403).json({ success: false, message: 'Your account is deactivated. Please contact administration.' });

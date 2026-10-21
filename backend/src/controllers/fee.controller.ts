@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { FeeStructure, FeePayment, StudentProfile, User, Stream, InstituteSettings } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { FeeService } from '../services/fee.service';
 
@@ -9,56 +9,59 @@ export class FeeController {
       const classFilter = req.query.class ? Number(req.query.class) : undefined;
       const statusFilter = (req.query.status as string) || 'all';
 
-      const where: any = {
-        student: {
-          user: { isActive: true }
-        }
-      };
-
+      const studentWhere: any = {};
       if (classFilter && [10, 11, 12].includes(classFilter)) {
-        where.student.targetClass = classFilter;
-      }
-      if (statusFilter !== 'all') {
-        where.status = statusFilter;
+        studentWhere.targetClass = classFilter;
       }
 
-      const structures = await prisma.feeStructure.findMany({
-        where,
-        include: {
-          student: {
-            include: { user: true, stream: true }
+      const structureWhere: any = {};
+      if (statusFilter !== 'all') {
+        structureWhere.status = statusFilter;
+      }
+
+      const structuresData = await FeeStructure.findAll({
+        where: structureWhere,
+        include: [
+          {
+            model: StudentProfile,
+            as: 'student',
+            where: studentWhere,
+            include: [
+              { model: User, as: 'user', where: { isActive: true } },
+              { model: Stream, as: 'stream' }
+            ]
           },
-          payments: {
-            orderBy: { paymentDate: 'desc' }
+          {
+            model: FeePayment,
+            as: 'payments'
           }
-        },
-        orderBy: { dueAmount: 'desc' }
+        ],
+        order: [['dueAmount', 'DESC']]
       });
+
+      const structures = structuresData.map(s => s.get({ plain: true }));
 
       // Pending payments awaiting verification
-      const pendingWhere: any = {
-        isVerified: false,
-        student: {
-          user: { isActive: true }
-        }
-      };
-      if (classFilter && [10, 11, 12].includes(classFilter)) {
-        pendingWhere.student.targetClass = classFilter;
-      }
-
-      const pendingPayments = await prisma.feePayment.findMany({
-        where: pendingWhere,
-        include: {
-          student: true,
-          feeStructure: true
-        },
-        orderBy: { paymentDate: 'desc' }
+      const pendingData = await FeePayment.findAll({
+        where: { isVerified: false },
+        include: [
+          {
+            model: StudentProfile,
+            as: 'student',
+            where: studentWhere,
+            include: [{ model: User, as: 'user', where: { isActive: true } }]
+          },
+          { model: FeeStructure, as: 'feeStructure' }
+        ],
+        order: [['paymentDate', 'DESC']]
       });
 
-      const totalExpected = structures.reduce((sum, s) => sum + s.finalFee, 0);
-      const totalCollected = structures.reduce((sum, s) => sum + s.paidAmount, 0);
-      const totalDue = structures.reduce((sum, s) => sum + s.dueAmount, 0);
-      const totalPendingVerification = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
+      const pendingPayments = pendingData.map(p => p.get({ plain: true }));
+
+      const totalExpected = structures.reduce((sum: number, s: any) => sum + Number(s.finalFee), 0);
+      const totalCollected = structures.reduce((sum: number, s: any) => sum + Number(s.paidAmount), 0);
+      const totalDue = structures.reduce((sum: number, s: any) => sum + Number(s.dueAmount), 0);
+      const totalPendingVerification = pendingPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
 
       res.json({
         success: true,
@@ -84,9 +87,9 @@ export class FeeController {
         return;
       }
 
-      const feeStructure = await prisma.feeStructure.findFirst({
+      const feeStructure = await FeeStructure.findOne({
         where: { studentId },
-        orderBy: { id: 'desc' }
+        order: [['id', 'DESC']]
       });
 
       if (!feeStructure) {
@@ -94,37 +97,35 @@ export class FeeController {
         return;
       }
 
-      const totalPayments = await prisma.feePayment.count();
+      const totalPayments = await FeePayment.count();
       let count = totalPayments + 1;
       let receiptNo = `REC-2026-${String(count).padStart(4, '0')}`;
-      while (await prisma.feePayment.findUnique({ where: { receiptNo } })) {
+      while (await FeePayment.findOne({ where: { receiptNo } })) {
         count++;
         receiptNo = `REC-2026-${String(count).padStart(4, '0')}`;
       }
 
-      const payment = await prisma.feePayment.create({
-        data: {
-          receiptNo,
-          feeStructureId: feeStructure.id,
-          studentId,
-          amount: Number(amount),
-          paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-          paymentMode: paymentMode || 'UPI',
-          referenceNo: referenceNo?.trim() || null,
-          remarks: remarks?.trim() || null,
-          receivedById: req.user?.id || null,
-          isVerified: true,
-          verifiedAt: new Date(),
-          submittedByStudent: false
-        }
+      const payment = await FeePayment.create({
+        receiptNo,
+        feeStructureId: feeStructure.get('id'),
+        studentId,
+        amount: Number(amount),
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+        paymentMode: paymentMode || 'UPI',
+        referenceNo: referenceNo?.trim() || null,
+        remarks: remarks?.trim() || null,
+        receivedById: req.user?.id || null,
+        isVerified: true,
+        verifiedAt: new Date(),
+        submittedByStudent: false
       });
 
-      await FeeService.recalculateFeeStructure(feeStructure.id);
+      await FeeService.recalculateFeeStructure(feeStructure.get('id'));
 
       res.status(201).json({
         success: true,
-        message: `Payment of ₹${payment.amount} recorded. Official Receipt No: ${receiptNo}`,
-        payment
+        message: `Payment of ₹${payment.get('amount')} recorded. Official Receipt No: ${receiptNo}`,
+        payment: payment.get({ plain: true })
       });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to record payment', error: err.message });
@@ -145,9 +146,9 @@ export class FeeController {
         return;
       }
 
-      const feeStructure = await prisma.feeStructure.findFirst({
+      const feeStructure = await FeeStructure.findOne({
         where: { studentId: student.id },
-        orderBy: { id: 'desc' }
+        order: [['id', 'DESC']]
       });
 
       if (!feeStructure) {
@@ -155,33 +156,31 @@ export class FeeController {
         return;
       }
 
-      const totalPayments = await prisma.feePayment.count();
+      const totalPayments = await FeePayment.count();
       let count = totalPayments + 1;
       let receiptNo = `REC-2026-${String(count).padStart(4, '0')}`;
-      while (await prisma.feePayment.findUnique({ where: { receiptNo } })) {
+      while (await FeePayment.findOne({ where: { receiptNo } })) {
         count++;
         receiptNo = `REC-2026-${String(count).padStart(4, '0')}`;
       }
 
-      const payment = await prisma.feePayment.create({
-        data: {
-          receiptNo,
-          feeStructureId: feeStructure.id,
-          studentId: student.id,
-          amount: Number(amount),
-          paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
-          paymentMode: paymentMode || 'UPI',
-          referenceNo: referenceNo?.trim() || null,
-          remarks: remarks?.trim() || null,
-          isVerified: false,
-          submittedByStudent: true
-        }
+      const payment = await FeePayment.create({
+        receiptNo,
+        feeStructureId: feeStructure.get('id'),
+        studentId: student.id,
+        amount: Number(amount),
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+        paymentMode: paymentMode || 'UPI',
+        referenceNo: referenceNo?.trim() || null,
+        remarks: remarks?.trim() || null,
+        isVerified: false,
+        submittedByStudent: true
       });
 
       res.status(201).json({
         success: true,
-        message: `Fee payment of ₹${payment.amount} submitted! Receipt will unlock once verified by mentor.`,
-        payment
+        message: `Fee payment of ₹${payment.get('amount')} submitted! Receipt will unlock once verified by mentor.`,
+        payment: payment.get({ plain: true })
       });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to submit payment', error: err.message });
@@ -191,27 +190,24 @@ export class FeeController {
   static async verifyPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const paymentId = Number(req.params.id);
-      const payment = await prisma.feePayment.findUnique({ where: { id: paymentId } });
+      const payment = await FeePayment.findByPk(paymentId);
 
       if (!payment) {
         res.status(404).json({ success: false, message: 'Payment record not found.' });
         return;
       }
 
-      await prisma.feePayment.update({
-        where: { id: paymentId },
-        data: {
-          isVerified: true,
-          verifiedAt: new Date(),
-          receivedById: req.user?.id || null
-        }
+      await payment.update({
+        isVerified: true,
+        verifiedAt: new Date(),
+        receivedById: req.user?.id || null
       });
 
-      await FeeService.recalculateFeeStructure(payment.feeStructureId);
+      await FeeService.recalculateFeeStructure(payment.get('feeStructureId'));
 
       res.json({
         success: true,
-        message: `Fee payment #${payment.receiptNo} of ₹${payment.amount} verified successfully!`
+        message: `Fee payment #${payment.get('receiptNo')} of ₹${payment.get('amount')} verified successfully!`
       });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Verification failed', error: err.message });
@@ -226,24 +222,21 @@ export class FeeController {
         return;
       }
 
-      const payments = await prisma.feePayment.findMany({
+      const payments = await FeePayment.findAll({
         where: {
-          id: { in: paymentIds.map(Number) },
+          id: paymentIds.map(Number),
           isVerified: false
         }
       });
 
       const affectedStructures = new Set<number>();
       for (const p of payments) {
-        await prisma.feePayment.update({
-          where: { id: p.id },
-          data: {
-            isVerified: true,
-            verifiedAt: new Date(),
-            receivedById: req.user?.id || null
-          }
+        await p.update({
+          isVerified: true,
+          verifiedAt: new Date(),
+          receivedById: req.user?.id || null
         });
-        affectedStructures.add(p.feeStructureId);
+        affectedStructures.add(p.get('feeStructureId'));
       }
 
       for (const fsId of affectedStructures) {
@@ -262,18 +255,19 @@ export class FeeController {
   static async rejectPayment(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const paymentId = Number(req.params.id);
-      const payment = await prisma.feePayment.findUnique({ where: { id: paymentId } });
+      const payment = await FeePayment.findByPk(paymentId);
 
       if (!payment) {
         res.status(404).json({ success: false, message: 'Payment record not found.' });
         return;
       }
 
-      const fsId = payment.feeStructureId;
-      await prisma.feePayment.delete({ where: { id: paymentId } });
+      const fsId = payment.get('feeStructureId');
+      const amount = payment.get('amount');
+      await payment.destroy();
       await FeeService.recalculateFeeStructure(fsId);
 
-      res.json({ success: true, message: `Fee submission of ₹${payment.amount} rejected and removed.` });
+      res.json({ success: true, message: `Fee submission of ₹${amount} rejected and removed.` });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to reject payment', error: err.message });
     }
@@ -284,34 +278,29 @@ export class FeeController {
       const studentId = Number(req.params.studentId);
       const { totalAnnualFee, discountAmount, discountReason } = req.body;
 
-      let structure = await prisma.feeStructure.findFirst({
+      let structure = await FeeStructure.findOne({
         where: { studentId },
-        orderBy: { id: 'desc' }
+        order: [['id', 'DESC']]
       });
 
       if (!structure) {
-        const student = await prisma.studentProfile.findUnique({ where: { id: studentId } });
-        structure = await prisma.feeStructure.create({
-          data: {
-            studentId,
-            academicYear: student?.academicYear || '2026-2027',
-            totalAnnualFee: Number(totalAnnualFee) || 25000,
-            finalFee: Number(totalAnnualFee) || 25000,
-            dueAmount: Number(totalAnnualFee) || 25000
-          }
+        const student = await StudentProfile.findByPk(studentId);
+        structure = await FeeStructure.create({
+          studentId,
+          academicYear: student?.get('academicYear') || '2026-2027',
+          totalAnnualFee: Number(totalAnnualFee) || 25000,
+          finalFee: Number(totalAnnualFee) || 25000,
+          dueAmount: Number(totalAnnualFee) || 25000
         });
       }
 
-      await prisma.feeStructure.update({
-        where: { id: structure.id },
-        data: {
-          totalAnnualFee: Number(totalAnnualFee),
-          discountAmount: Number(discountAmount) || 0,
-          discountReason: discountReason?.trim() || null
-        }
+      await structure.update({
+        totalAnnualFee: Number(totalAnnualFee),
+        discountAmount: Number(discountAmount) || 0,
+        discountReason: discountReason?.trim() || null
       });
 
-      const updated = await FeeService.recalculateFeeStructure(structure.id);
+      const updated = await FeeService.recalculateFeeStructure(structure.get('id'));
 
       res.json({ success: true, message: 'Fee structure updated successfully.', structure: updated });
     } catch (err: any) {
@@ -322,23 +311,28 @@ export class FeeController {
   static async getReceipt(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const paymentId = Number(req.params.id);
-      const payment = await prisma.feePayment.findUnique({
-        where: { id: paymentId },
-        include: {
-          student: {
-            include: { stream: true, user: true }
+      const paymentData = await FeePayment.findByPk(paymentId, {
+        include: [
+          {
+            model: StudentProfile,
+            as: 'student',
+            include: [{ model: Stream, as: 'stream' }, { model: User, as: 'user' }]
           },
-          feeStructure: true,
-          receivedBy: {
-            select: { username: true, role: true }
+          { model: FeeStructure, as: 'feeStructure' },
+          {
+            model: User,
+            as: 'receivedBy',
+            attributes: ['username', 'role']
           }
-        }
+        ]
       });
 
-      if (!payment) {
+      if (!paymentData) {
         res.status(404).json({ success: false, message: 'Receipt not found.' });
         return;
       }
+
+      const payment = paymentData.get({ plain: true });
 
       // If student user is requesting, enforce ownership and verified status
       if (req.user?.role === 'student' && payment.studentId !== req.user.studentProfile?.id) {
@@ -351,7 +345,8 @@ export class FeeController {
         return;
       }
 
-      const settings = await prisma.instituteSettings.findFirst() || {
+      const settingsInstance = await InstituteSettings.findOne();
+      const settings = settingsInstance ? settingsInstance.get({ plain: true }) : {
         name: 'NEGI TUTORIALS',
         tagline: 'Learn • Grow • Succeed',
         phone: '+91 98765 43210',
@@ -373,19 +368,20 @@ export class FeeController {
         return;
       }
 
-      const feeStructures = await prisma.feeStructure.findMany({
+      const feeStructures = await FeeStructure.findAll({
         where: { studentId: student.id },
-        include: {
-          payments: {
-            orderBy: { paymentDate: 'desc' }
+        include: [
+          {
+            model: FeePayment,
+            as: 'payments'
           }
-        },
-        orderBy: { id: 'desc' }
+        ],
+        order: [['id', 'DESC']]
       });
 
-      const payments = await prisma.feePayment.findMany({
+      const payments = await FeePayment.findAll({
         where: { studentId: student.id },
-        orderBy: { paymentDate: 'desc' }
+        order: [['paymentDate', 'DESC']]
       });
 
       res.json({

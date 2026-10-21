@@ -1,5 +1,19 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import {
+  StudentProfile,
+  User,
+  Stream,
+  Subject,
+  StudentSubject,
+  FeeStructure,
+  FeePayment,
+  Attendance,
+  ExamMark,
+  Exam,
+  Announcement,
+  sequelize,
+  Op
+} from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AuthService } from '../services/auth.service';
 
@@ -12,13 +26,14 @@ export class StudentController {
       const statusFilter = (req.query.status as string) || 'active';
       const search = (req.query.q as string)?.trim();
 
-      const where: any = {};
-
+      const userWhere: any = {};
       if (statusFilter === 'active') {
-        where.user = { isActive: true };
+        userWhere.isActive = true;
       } else if (statusFilter === 'archived') {
-        where.user = { isActive: false };
+        userWhere.isActive = false;
       }
+
+      const where: any = {};
 
       if (classFilter && [10, 11, 12].includes(classFilter)) {
         where.targetClass = classFilter;
@@ -29,11 +44,11 @@ export class StudentController {
       }
 
       if (search) {
-        where.OR = [
-          { firstName: { contains: search } },
-          { lastName: { contains: search } },
-          { enrollmentNo: { contains: search } },
-          { user: { email: { contains: search } } }
+        where[Op.or] = [
+          { firstName: { [Op.like]: `%${search}%` } },
+          { lastName: { [Op.like]: `%${search}%` } },
+          { enrollmentNo: { [Op.like]: `%${search}%` } },
+          { '$user.email$': { [Op.like]: `%${search}%` } }
         ];
       }
 
@@ -41,22 +56,20 @@ export class StudentController {
       const isMentor = req.user?.role === 'mentor';
 
       if (isMentor) {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user!.id },
-          include: {
-            assignedSubjects: {
+        const mentor = await User.findByPk(req.user!.id, {
+          include: [
+            {
+              model: Subject,
+              as: 'assignedSubjects',
               where: { isActive: true },
-              include: { stream: true },
-              orderBy: [
-                { targetClass: 'asc' },
-                { name: 'asc' }
-              ]
+              required: false,
+              include: [{ model: Stream, as: 'stream' }]
             }
-          }
+          ]
         });
 
-        mentorAssignedSubjects = mentor?.assignedSubjects || [];
-        const mentorSubjectIds = mentorAssignedSubjects.map(s => s.id);
+        mentorAssignedSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorAssignedSubjects.map((s: any) => s.id);
 
         if (mentorSubjectIds.length === 0) {
           res.json({
@@ -78,47 +91,60 @@ export class StudentController {
             });
             return;
           }
-          where.subjectEnrollments = {
-            some: {
-              subjectId: subjectFilter,
-              status: 'Active'
-            }
-          };
+          const enrollments = await StudentSubject.findAll({
+            where: { subjectId: subjectFilter, status: 'Active' },
+            attributes: ['studentId']
+          });
+          where.id = { [Op.in]: enrollments.map(e => e.get('studentId')) };
         } else {
-          where.subjectEnrollments = {
-            some: {
-              subjectId: { in: mentorSubjectIds },
-              status: 'Active'
-            }
-          };
+          const enrollments = await StudentSubject.findAll({
+            where: { subjectId: { [Op.in]: mentorSubjectIds }, status: 'Active' },
+            attributes: ['studentId']
+          });
+          where.id = { [Op.in]: enrollments.map(e => e.get('studentId')) };
         }
       } else if (subjectFilter) {
-        where.subjectEnrollments = {
-          some: {
-            subjectId: subjectFilter,
-            status: 'Active'
-          }
-        };
+        const enrollments = await StudentSubject.findAll({
+          where: { subjectId: subjectFilter, status: 'Active' },
+          attributes: ['studentId']
+        });
+        where.id = { [Op.in]: enrollments.map(e => e.get('studentId')) };
       }
 
-      const students = await prisma.studentProfile.findMany({
+      const studentsData = await StudentProfile.findAll({
         where,
-        include: {
-          user: true,
-          stream: true,
-          subjectEnrollments: {
-            where: { status: 'Active' },
-            include: { subject: true }
+        include: [
+          {
+            model: User,
+            as: 'user',
+            where: userWhere
           },
-          feeStructures: {
-            orderBy: { id: 'desc' },
-            take: 1
+          { model: Stream, as: 'stream' },
+          {
+            model: StudentSubject,
+            as: 'subjectEnrollments',
+            where: { status: 'Active' },
+            required: false,
+            include: [{ model: Subject, as: 'subject' }]
+          },
+          {
+            model: FeeStructure,
+            as: 'feeStructures',
+            required: false
           }
-        },
-        orderBy: [
-          { targetClass: 'asc' },
-          { enrollmentNo: 'asc' }
+        ],
+        order: [
+          ['targetClass', 'ASC'],
+          ['enrollmentNo', 'ASC']
         ]
+      });
+
+      const students = studentsData.map(s => {
+        const plain = s.get({ plain: true });
+        return {
+          ...plain,
+          feeStructures: plain.feeStructures ? plain.feeStructures.slice(-1) : []
+        };
       });
 
       res.json({
@@ -137,46 +163,58 @@ export class StudentController {
     try {
       const studentId = Number(req.params.id);
 
-      const student = await prisma.studentProfile.findUnique({
-        where: { id: studentId },
-        include: {
-          user: true,
-          stream: true,
-          subjectEnrollments: {
+      const studentData = await StudentProfile.findByPk(studentId, {
+        include: [
+          { model: User, as: 'user' },
+          { model: Stream, as: 'stream' },
+          {
+            model: StudentSubject,
+            as: 'subjectEnrollments',
             where: { status: 'Active' },
-            include: { subject: true }
+            required: false,
+            include: [{ model: Subject, as: 'subject' }]
           },
-          attendanceRecords: {
-            include: { subject: true },
-            orderBy: { date: 'desc' }
+          {
+            model: Attendance,
+            as: 'attendanceRecords',
+            required: false,
+            include: [{ model: Subject, as: 'subject' }]
           },
-          feeStructures: {
-            include: { payments: true },
-            orderBy: { id: 'desc' }
+          {
+            model: FeeStructure,
+            as: 'feeStructures',
+            required: false,
+            include: [{ model: FeePayment, as: 'payments' }]
           },
-          feePayments: {
-            orderBy: { paymentDate: 'desc' }
+          {
+            model: FeePayment,
+            as: 'feePayments',
+            required: false
           },
-          examMarks: {
-            include: { exam: { include: { subject: true } } },
-            orderBy: { exam: { examDate: 'desc' } }
+          {
+            model: ExamMark,
+            as: 'examMarks',
+            required: false,
+            include: [{ model: Exam, as: 'exam', include: [{ model: Subject, as: 'subject' }] }]
           }
-        }
+        ]
       });
 
-      if (!student) {
+      if (!studentData) {
         res.status(404).json({ success: false, message: 'Student profile not found.' });
         return;
       }
 
+      const student = studentData.get({ plain: true });
+
       if (req.user?.role === 'mentor') {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        const mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
-        const isEnrolledInMentorSubject = student.subjectEnrollments.some(
-          se => se.status === 'Active' && mentorSubjectIds.includes(se.subjectId)
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
+        const isEnrolledInMentorSubject = (student.subjectEnrollments || []).some(
+          (se: any) => se.status === 'Active' && mentorSubjectIds.includes(se.subjectId)
         );
 
         if (!isEnrolledInMentorSubject) {
@@ -224,11 +262,11 @@ export class StudentController {
         return;
       }
 
-      const existingUser = await prisma.user.findFirst({
+      const existingUser = await User.findOne({
         where: {
-          OR: [
-            { username: { equals: username.trim() } },
-            { email: { equals: email.trim() } }
+          [Op.or]: [
+            { username: username.trim() },
+            { email: email.trim().toLowerCase() }
           ]
         }
       });
@@ -241,10 +279,10 @@ export class StudentController {
       const passwordHash = await AuthService.hashPassword(password);
 
       // Generate unique enrollment number: NT-2026-XXX
-      const totalCount = await prisma.studentProfile.count();
+      const totalCount = await StudentProfile.count();
       let count = totalCount + 1;
       let enrollmentNo = `NT-2026-${String(count).padStart(3, '0')}`;
-      while (await prisma.studentProfile.findUnique({ where: { enrollmentNo } })) {
+      while (await StudentProfile.findOne({ where: { enrollmentNo } })) {
         count++;
         enrollmentNo = `NT-2026-${String(count).padStart(3, '0')}`;
       }
@@ -255,74 +293,69 @@ export class StudentController {
       const discount = Number(discountAmount) || 0;
       const finalFee = Math.max(0, totalFee - discount);
 
-      const student = await prisma.$transaction(async (tx) => {
-        const u = await tx.user.create({
-          data: {
-            username: username.trim(),
-            email: email.trim().toLowerCase(),
-            passwordHash,
-            role: 'student',
-            isActive: true
-          }
-        });
+      const student = await sequelize.transaction(async (t) => {
+        const u = await User.create({
+          username: username.trim(),
+          email: email.trim().toLowerCase(),
+          passwordHash,
+          role: 'student',
+          isActive: true
+        }, { transaction: t });
 
-        const sp = await tx.studentProfile.create({
-          data: {
-            userId: u.id,
-            enrollmentNo,
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            gender: gender || null,
-            dob: dob ? new Date(dob) : null,
-            contactNumber: contactNumber?.trim() || null,
-            parentName: parentName?.trim() || null,
-            parentContact: parentContact?.trim() || null,
-            parentEmail: parentEmail?.trim().toLowerCase() || null,
-            address: address?.trim() || null,
-            emergencyContact: emergencyContact?.trim() || null,
-            targetClass: chosenClass,
-            academicYear: academicYear || '2026-2027',
-            streamId: chosenStreamId,
-            notes: notes || null
-          }
-        });
+        const sp = await StudentProfile.create({
+          userId: u.get('id'),
+          enrollmentNo,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          gender: gender || null,
+          dob: dob ? new Date(dob) : null,
+          contactNumber: contactNumber?.trim() || null,
+          parentName: parentName?.trim() || null,
+          parentContact: parentContact?.trim() || null,
+          parentEmail: parentEmail?.trim().toLowerCase() || null,
+          address: address?.trim() || null,
+          emergencyContact: emergencyContact?.trim() || null,
+          targetClass: chosenClass,
+          academicYear: academicYear || '2026-2027',
+          streamId: chosenStreamId,
+          notes: notes || null
+        }, { transaction: t });
 
-        await tx.feeStructure.create({
-          data: {
-            studentId: sp.id,
-            academicYear: academicYear || '2026-2027',
-            totalAnnualFee: totalFee,
-            discountAmount: discount,
-            discountReason: discountReason || null,
-            finalFee,
-            paidAmount: 0.0,
-            dueAmount: finalFee,
-            status: 'Pending'
-          }
-        });
+        await FeeStructure.create({
+          studentId: sp.get('id'),
+          academicYear: academicYear || '2026-2027',
+          totalAnnualFee: totalFee,
+          discountAmount: discount,
+          discountReason: discountReason || null,
+          finalFee,
+          paidAmount: 0.0,
+          dueAmount: finalFee,
+          status: 'Pending'
+        }, { transaction: t });
 
         // Auto enroll in default subjects
-        const defaultSubjects = await tx.subject.findMany({
-          where: {
-            targetClass: chosenClass,
-            isActive: true,
-            ...(chosenClass !== 10 && chosenStreamId ? {
-              OR: [
-                { streamId: chosenStreamId },
-                { streamId: null }
-              ]
-            } : {})
-          }
+        const subjectWhere: any = {
+          targetClass: chosenClass,
+          isActive: true
+        };
+        if (chosenClass !== 10 && chosenStreamId) {
+          subjectWhere[Op.or] = [
+            { streamId: chosenStreamId },
+            { streamId: null }
+          ];
+        }
+
+        const defaultSubjects = await Subject.findAll({
+          where: subjectWhere,
+          transaction: t
         });
 
         for (const subj of defaultSubjects) {
-          await tx.studentSubject.create({
-            data: {
-              studentId: sp.id,
-              subjectId: subj.id,
-              status: 'Active'
-            }
-          });
+          await StudentSubject.create({
+            studentId: sp.get('id'),
+            subjectId: subj.get('id'),
+            status: 'Active'
+          }, { transaction: t });
         }
 
         return sp;
@@ -331,7 +364,7 @@ export class StudentController {
       res.status(201).json({
         success: true,
         message: `Student enrolled successfully with Enrollment No: ${enrollmentNo}`,
-        studentId: student.id,
+        studentId: student.get('id'),
         enrollmentNo
       });
     } catch (err: any) {
@@ -342,9 +375,8 @@ export class StudentController {
   static async update(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const studentId = Number(req.params.id);
-      const student = await prisma.studentProfile.findUnique({
-        where: { id: studentId },
-        include: { user: true }
+      const student = await StudentProfile.findByPk(studentId, {
+        include: [{ model: User, as: 'user' }]
       });
 
       if (!student) {
@@ -372,37 +404,34 @@ export class StudentController {
         isActive
       } = req.body;
 
-      const chosenStreamId = streamId !== undefined ? (streamId === 0 ? null : Number(streamId)) : student.streamId;
+      const chosenStreamId = streamId !== undefined ? (streamId === 0 ? null : Number(streamId)) : student.get('streamId');
 
-      await prisma.$transaction(async (tx) => {
+      await sequelize.transaction(async (t) => {
         if (isActive !== undefined) {
-          await tx.user.update({
-            where: { id: student.userId },
-            data: { isActive: Boolean(isActive) }
-          });
+          await User.update(
+            { isActive: Boolean(isActive) },
+            { where: { id: student.get('userId') }, transaction: t }
+          );
         }
 
-        await tx.studentProfile.update({
-          where: { id: studentId },
-          data: {
-            ...(firstName && { firstName: firstName.trim() }),
-            ...(lastName && { lastName: lastName.trim() }),
-            ...(gender !== undefined && { gender }),
-            ...(dob !== undefined && { dob: dob ? new Date(dob) : null }),
-            ...(contactNumber !== undefined && { contactNumber: contactNumber?.trim() || null }),
-            ...(parentName !== undefined && { parentName: parentName?.trim() || null }),
-            ...(parentContact !== undefined && { parentContact: parentContact?.trim() || null }),
-            ...(parentEmail !== undefined && { parentEmail: parentEmail?.trim().toLowerCase() || null }),
-            ...(address !== undefined && { address: address?.trim() || null }),
-            ...(emergencyContact !== undefined && { emergencyContact: emergencyContact?.trim() || null }),
-            ...(targetClass !== undefined && { targetClass: Number(targetClass) }),
-            ...(academicYear !== undefined && { academicYear }),
-            streamId: chosenStreamId,
-            ...(isStreamLocked !== undefined && { isStreamLocked: Boolean(isStreamLocked) }),
-            ...(isSubjectLocked !== undefined && { isSubjectLocked: Boolean(isSubjectLocked) }),
-            ...(notes !== undefined && { notes })
-          }
-        });
+        await student.update({
+          ...(firstName && { firstName: firstName.trim() }),
+          ...(lastName && { lastName: lastName.trim() }),
+          ...(gender !== undefined && { gender }),
+          ...(dob !== undefined && { dob: dob ? new Date(dob) : null }),
+          ...(contactNumber !== undefined && { contactNumber: contactNumber?.trim() || null }),
+          ...(parentName !== undefined && { parentName: parentName?.trim() || null }),
+          ...(parentContact !== undefined && { parentContact: parentContact?.trim() || null }),
+          ...(parentEmail !== undefined && { parentEmail: parentEmail?.trim().toLowerCase() || null }),
+          ...(address !== undefined && { address: address?.trim() || null }),
+          ...(emergencyContact !== undefined && { emergencyContact: emergencyContact?.trim() || null }),
+          ...(targetClass !== undefined && { targetClass: Number(targetClass) }),
+          ...(academicYear !== undefined && { academicYear }),
+          streamId: chosenStreamId,
+          ...(isStreamLocked !== undefined && { isStreamLocked: Boolean(isStreamLocked) }),
+          ...(isSubjectLocked !== undefined && { isSubjectLocked: Boolean(isSubjectLocked) }),
+          ...(notes !== undefined && { notes })
+        }, { transaction: t });
       });
 
       res.json({ success: true, message: 'Student profile updated successfully.' });
@@ -414,9 +443,8 @@ export class StudentController {
   static async toggleActive(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const studentId = Number(req.params.id);
-      const student = await prisma.studentProfile.findUnique({
-        where: { id: studentId },
-        include: { user: true }
+      const student = await StudentProfile.findByPk(studentId, {
+        include: [{ model: User, as: 'user' }]
       });
 
       if (!student) {
@@ -424,15 +452,14 @@ export class StudentController {
         return;
       }
 
-      const updatedUser = await prisma.user.update({
-        where: { id: student.userId },
-        data: { isActive: !student.user.isActive }
-      });
+      const user = student.get('user');
+      const newStatus = !user.isActive;
+      await User.update({ isActive: newStatus }, { where: { id: student.get('userId') } });
 
       res.json({
         success: true,
-        message: `Student account has been ${updatedUser.isActive ? 'activated' : 'archived'}.`,
-        isActive: updatedUser.isActive
+        message: `Student account has been ${newStatus ? 'activated' : 'archived'}.`,
+        isActive: newStatus
       });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to toggle status', error: err.message });
@@ -449,26 +476,24 @@ export class StudentController {
         return;
       }
 
-      await prisma.$transaction(async (tx) => {
+      await sequelize.transaction(async (t) => {
         // Delete old
-        await tx.studentSubject.deleteMany({ where: { studentId } });
+        await StudentSubject.destroy({ where: { studentId }, transaction: t });
 
         // Add new
         for (const sid of subjectIds) {
-          await tx.studentSubject.create({
-            data: {
-              studentId,
-              subjectId: Number(sid),
-              status: 'Active'
-            }
-          });
+          await StudentSubject.create({
+            studentId,
+            subjectId: Number(sid),
+            status: 'Active'
+          }, { transaction: t });
         }
 
         if (lockSubjects !== undefined) {
-          await tx.studentProfile.update({
-            where: { id: studentId },
-            data: { isSubjectLocked: Boolean(lockSubjects) }
-          });
+          await StudentProfile.update(
+            { isSubjectLocked: Boolean(lockSubjects) },
+            { where: { id: studentId }, transaction: t }
+          );
         }
       });
 
@@ -481,17 +506,18 @@ export class StudentController {
   static async delete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const studentId = Number(req.params.id);
-      const student = await prisma.studentProfile.findUnique({ where: { id: studentId } });
+      const student = await StudentProfile.findByPk(studentId);
 
       if (!student) {
         res.status(404).json({ success: false, message: 'Student profile not found.' });
         return;
       }
 
+      const enrollmentNo = student.get('enrollmentNo');
       // Deleting user will cascade delete StudentProfile and all linked records
-      await prisma.user.delete({ where: { id: student.userId } });
+      await User.destroy({ where: { id: student.get('userId') } });
 
-      res.json({ success: true, message: `Student (${student.enrollmentNo}) has been deleted.` });
+      res.json({ success: true, message: `Student (${enrollmentNo}) has been deleted.` });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to delete student', error: err.message });
     }
@@ -507,14 +533,14 @@ export class StudentController {
 
       const { contactNumber, address, emergencyContact } = req.body;
 
-      await prisma.studentProfile.update({
-        where: { id: student.id },
-        data: {
+      await StudentProfile.update(
+        {
           ...(contactNumber !== undefined && { contactNumber: contactNumber?.trim() || null }),
           ...(address !== undefined && { address: address?.trim() || null }),
           ...(emergencyContact !== undefined && { emergencyContact: emergencyContact?.trim() || null })
-        }
-      });
+        },
+        { where: { id: student.id } }
+      );
 
       res.json({ success: true, message: 'Profile contact details updated successfully.' });
     } catch (err: any) {
@@ -530,26 +556,35 @@ export class StudentController {
         return;
       }
 
-      const fullProfile = await prisma.studentProfile.findUnique({
-        where: { id: student.id },
-        include: {
-          user: { select: { id: true, username: true, email: true, role: true, profilePicture: true, isActive: true } },
-          stream: true,
-          subjectEnrollments: {
-            where: { status: 'Active' },
-            include: { subject: true }
+      const fullProfile = await StudentProfile.findByPk(student.id, {
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['id', 'username', 'email', 'role', 'profilePicture', 'isActive']
           },
-          feeStructures: {
-            orderBy: { id: 'desc' },
-            take: 1,
-            include: { payments: true }
+          { model: Stream, as: 'stream' },
+          {
+            model: StudentSubject,
+            as: 'subjectEnrollments',
+            where: { status: 'Active' },
+            required: false,
+            include: [{ model: Subject, as: 'subject' }]
+          },
+          {
+            model: FeeStructure,
+            as: 'feeStructures',
+            required: false,
+            include: [{ model: FeePayment, as: 'payments' }]
           }
-        }
+        ]
       });
 
-      const studentResponse = fullProfile ? {
-        ...fullProfile,
-        studentSubjects: fullProfile.subjectEnrollments
+      const plain = fullProfile ? fullProfile.get({ plain: true }) : null;
+      const studentResponse = plain ? {
+        ...plain,
+        studentSubjects: plain.subjectEnrollments,
+        feeStructures: plain.feeStructures ? plain.feeStructures.slice(-1) : []
       } : null;
 
       res.json({ success: true, student: studentResponse });
@@ -566,8 +601,8 @@ export class StudentController {
         return;
       }
 
-      const current = await prisma.studentProfile.findUnique({ where: { id: student.id } });
-      if (current?.isStreamLocked) {
+      const current = await StudentProfile.findByPk(student.id);
+      if (current?.get('isStreamLocked')) {
         res.status(400).json({ success: false, message: 'Stream selection is locked. Submit a change request to modify.' });
         return;
       }
@@ -578,13 +613,13 @@ export class StudentController {
         return;
       }
 
-      const updated = await prisma.studentProfile.update({
-        where: { id: student.id },
-        data: {
-          streamId: Number(streamId),
-          ...(lockStream !== undefined && { isStreamLocked: Boolean(lockStream) })
-        },
-        include: { stream: true }
+      await current!.update({
+        streamId: Number(streamId),
+        ...(lockStream !== undefined && { isStreamLocked: Boolean(lockStream) })
+      });
+
+      const updated = await StudentProfile.findByPk(student.id, {
+        include: [{ model: Stream, as: 'stream' }]
       });
 
       res.json({ success: true, message: 'Academic stream selected successfully.', student: updated });
@@ -601,8 +636,8 @@ export class StudentController {
         return;
       }
 
-      const current = await prisma.studentProfile.findUnique({ where: { id: student.id } });
-      if (current?.isSubjectLocked) {
+      const current = await StudentProfile.findByPk(student.id);
+      if (current?.get('isSubjectLocked')) {
         res.status(400).json({ success: false, message: 'Subject choices are locked. Submit a change request to modify.' });
         return;
       }
@@ -613,23 +648,18 @@ export class StudentController {
         return;
       }
 
-      await prisma.$transaction(async (tx) => {
-        await tx.studentSubject.deleteMany({ where: { studentId: student.id } });
+      await sequelize.transaction(async (t) => {
+        await StudentSubject.destroy({ where: { studentId: student.id }, transaction: t });
         for (const sid of subjectIds) {
-          await tx.studentSubject.create({
-            data: {
-              studentId: student.id,
-              subjectId: Number(sid),
-              status: 'Active'
-            }
-          });
+          await StudentSubject.create({
+            studentId: student.id,
+            subjectId: Number(sid),
+            status: 'Active'
+          }, { transaction: t });
         }
 
         if (lockSubjects) {
-          await tx.studentProfile.update({
-            where: { id: student.id },
-            data: { isSubjectLocked: true }
-          });
+          await current!.update({ isSubjectLocked: true }, { transaction: t });
         }
       });
 
@@ -647,16 +677,14 @@ export class StudentController {
         return;
       }
 
-      const ownerUser = await prisma.user.findFirst({ where: { role: 'owner' } });
+      const ownerUser = await User.findOne({ where: { role: 'owner' } });
       if (ownerUser) {
-        await prisma.announcement.create({
-          data: {
-            title: `New Admission Lead: ${name} (Class ${targetClass || 10})`,
-            content: `Contact: ${phone} | Email: ${email || 'None'} | Stream: ${stream || 'General'} | Message: ${message || 'Looking for admission'}`,
-            targetClass: 'All',
-            priority: 'Important',
-            createdById: ownerUser.id
-          }
+        await Announcement.create({
+          title: `New Admission Lead: ${name} (Class ${targetClass || 10})`,
+          content: `Contact: ${phone} | Email: ${email || 'None'} | Stream: ${stream || 'General'} | Message: ${message || 'Looking for admission'}`,
+          targetClass: 'All',
+          priority: 'Important',
+          createdById: ownerUser.get('id')
         });
       }
 

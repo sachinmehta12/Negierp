@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { User, StudentProfile, Stream, Subject, StudentSubject, FeeStructure, sequelize, Op } from '../models';
 import { AuthService } from '../services/auth.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
@@ -13,26 +13,30 @@ export class AuthController {
       }
 
       const ident = usernameOrEmail.trim().toLowerCase();
-      const user = await prisma.user.findFirst({
+      const userInstance = await User.findOne({
         where: {
-          OR: [
-            { username: { equals: ident } },
-            { email: { equals: ident } }
+          [Op.or]: [
+            { username: ident },
+            { email: ident }
           ]
         },
-        include: {
-          stream: true,
-          studentProfile: {
-            include: { stream: true }
+        include: [
+          { model: Stream, as: 'stream' },
+          {
+            model: StudentProfile,
+            as: 'studentProfile',
+            include: [{ model: Stream, as: 'stream' }]
           },
-          assignedSubjects: true
-        }
+          { model: Subject, as: 'assignedSubjects' }
+        ]
       });
 
-      if (!user) {
+      if (!userInstance) {
         res.status(401).json({ success: false, message: 'Invalid username/email or password.' });
         return;
       }
+
+      const user = userInstance.get({ plain: true });
 
       const isMatch = await AuthService.comparePassword(password, user.passwordHash);
       if (!isMatch) {
@@ -96,11 +100,11 @@ export class AuthController {
       }
 
       // Check duplicates
-      const existingUser = await prisma.user.findFirst({
+      const existingUser = await User.findOne({
         where: {
-          OR: [
-            { username: { equals: username.trim() } },
-            { email: { equals: email.trim() } }
+          [Op.or]: [
+            { username: username.trim() },
+            { email: email.trim().toLowerCase() }
           ]
         }
       });
@@ -113,10 +117,10 @@ export class AuthController {
       const passwordHash = await AuthService.hashPassword(password);
 
       // Unique enrollment number NT-2026-XXX
-      const totalCount = await prisma.studentProfile.count();
+      const totalCount = await StudentProfile.count();
       let count = totalCount + 1;
       let enrollmentNo = `NT-2026-${String(count).padStart(3, '0')}`;
-      while (await prisma.studentProfile.findUnique({ where: { enrollmentNo } })) {
+      while (await StudentProfile.findOne({ where: { enrollmentNo } })) {
         count++;
         enrollmentNo = `NT-2026-${String(count).padStart(3, '0')}`;
       }
@@ -125,84 +129,79 @@ export class AuthController {
       const chosenStreamId = (chosenClass === 10 || !streamId || streamId === 0) ? null : Number(streamId);
 
       // Create User & StudentProfile in transaction
-      const newUser = await prisma.$transaction(async (tx) => {
-        const u = await tx.user.create({
-          data: {
-            username: username.trim(),
-            email: email.trim().toLowerCase(),
-            passwordHash,
-            role: 'student',
-            isActive: true
-          }
-        });
+      const newUser = await sequelize.transaction(async (t) => {
+        const u = await User.create({
+          username: username.trim(),
+          email: email.trim().toLowerCase(),
+          passwordHash,
+          role: 'student',
+          isActive: true
+        }, { transaction: t });
 
-        const sp = await tx.studentProfile.create({
-          data: {
-            userId: u.id,
-            enrollmentNo,
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            gender: gender || null,
-            contactNumber: contactNumber ? contactNumber.trim() : null,
-            parentName: parentName ? parentName.trim() : null,
-            parentContact: parentContact ? parentContact.trim() : null,
-            address: address ? address.trim() : null,
-            targetClass: chosenClass,
-            academicYear: '2026-2027',
-            streamId: chosenStreamId,
-            notes: 'Self-registered via portal.'
-          }
-        });
+        const sp = await StudentProfile.create({
+          userId: u.get('id'),
+          enrollmentNo,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          gender: gender || null,
+          contactNumber: contactNumber ? contactNumber.trim() : null,
+          parentName: parentName ? parentName.trim() : null,
+          parentContact: parentContact ? parentContact.trim() : null,
+          address: address ? address.trim() : null,
+          targetClass: chosenClass,
+          academicYear: '2026-2027',
+          streamId: chosenStreamId,
+          notes: 'Self-registered via portal.'
+        }, { transaction: t });
 
         // Default annual fee
         const classFeeMap: Record<number, number> = { 10: 22000, 11: 28000, 12: 32000 };
         const annualFee = classFeeMap[chosenClass] || 25000;
 
-        await tx.feeStructure.create({
-          data: {
-            studentId: sp.id,
-            academicYear: '2026-2027',
-            totalAnnualFee: annualFee,
-            discountAmount: 0.0,
-            finalFee: annualFee,
-            paidAmount: 0.0,
-            dueAmount: annualFee,
-            status: 'Pending'
-          }
-        });
+        await FeeStructure.create({
+          studentId: sp.get('id'),
+          academicYear: '2026-2027',
+          totalAnnualFee: annualFee,
+          discountAmount: 0.0,
+          finalFee: annualFee,
+          paidAmount: 0.0,
+          dueAmount: annualFee,
+          status: 'Pending'
+        }, { transaction: t });
 
         // Auto-enroll in default subjects for this class/stream
-        const defaultSubjects = await tx.subject.findMany({
-          where: {
-            targetClass: chosenClass,
-            isActive: true,
-            ...(chosenClass !== 10 && chosenStreamId ? {
-              OR: [
-                { streamId: chosenStreamId },
-                { streamId: null }
-              ]
-            } : {})
-          }
+        const subjectWhere: any = {
+          targetClass: chosenClass,
+          isActive: true
+        };
+        if (chosenClass !== 10 && chosenStreamId) {
+          subjectWhere[Op.or] = [
+            { streamId: chosenStreamId },
+            { streamId: null }
+          ];
+        }
+
+        const defaultSubjects = await Subject.findAll({
+          where: subjectWhere,
+          transaction: t
         });
 
         for (const subj of defaultSubjects) {
-          await tx.studentSubject.create({
-            data: {
-              studentId: sp.id,
-              subjectId: subj.id,
-              status: 'Active'
-            }
-          });
+          await StudentSubject.create({
+            studentId: sp.get('id'),
+            subjectId: subj.get('id'),
+            status: 'Active'
+          }, { transaction: t });
         }
 
         return u;
       });
 
       const token = AuthService.generateToken({
-        userId: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
-        role: newUser.role
+        userId: newUser.get('id'),
+        username: newUser.get('username'),
+        email: newUser.get('email'),
+        role: newUser.get('role')
       });
 
       res.status(201).json({
@@ -224,11 +223,11 @@ export class AuthController {
         return;
       }
 
-      const existingUser = await prisma.user.findFirst({
+      const existingUser = await User.findOne({
         where: {
-          OR: [
-            { username: { equals: username.trim() } },
-            { email: { equals: email.trim() } }
+          [Op.or]: [
+            { username: username.trim() },
+            { email: email.trim().toLowerCase() }
           ]
         }
       });
@@ -241,57 +240,58 @@ export class AuthController {
       const passwordHash = await AuthService.hashPassword(password);
       const chosenStreamId = streamId && Number(streamId) > 0 ? Number(streamId) : null;
 
-      let connectSubjects: { id: number }[] = [];
+      let connectSubjectIds: number[] = [];
       if (Array.isArray(subjectIds) && subjectIds.length > 0) {
-        connectSubjects = subjectIds.map((id: number) => ({ id: Number(id) }));
+        connectSubjectIds = subjectIds.map((id: number) => Number(id));
       } else if (chosenStreamId) {
-        // Auto-connect subjects belonging to selected stream plus universal subjects
-        const streamSubjects = await prisma.subject.findMany({
+        const streamSubjects = await Subject.findAll({
           where: {
             isActive: true,
-            OR: [
+            [Op.or]: [
               { streamId: chosenStreamId },
               { streamId: null }
             ]
           },
-          select: { id: true }
+          attributes: ['id']
         });
-        connectSubjects = streamSubjects.map(s => ({ id: s.id }));
+        connectSubjectIds = streamSubjects.map(s => s.get('id'));
       }
 
-      const user = await prisma.user.create({
-        data: {
-          username: username.trim(),
-          email: email.trim().toLowerCase(),
-          passwordHash,
-          role: 'mentor',
-          isActive: true,
-          streamId: chosenStreamId,
-          designation: designation?.trim() || null,
-          ...(connectSubjects.length > 0 && {
-            assignedSubjects: {
-              connect: connectSubjects
-            }
-          })
-        },
-        include: {
-          assignedSubjects: true,
-          stream: true
-        }
+      const user = await User.create({
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
+        passwordHash,
+        role: 'mentor',
+        isActive: true,
+        streamId: chosenStreamId,
+        designation: designation?.trim() || null
+      });
+
+      if (connectSubjectIds.length > 0) {
+        await (user as any).setAssignedSubjects(connectSubjectIds);
+      }
+
+      const fullUser = await User.findByPk(user.get('id'), {
+        include: [
+          { model: Subject, as: 'assignedSubjects' },
+          { model: Stream, as: 'stream' }
+        ]
       });
 
       const token = AuthService.generateToken({
-        userId: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
+        userId: user.get('id'),
+        username: user.get('username'),
+        email: user.get('email'),
+        role: user.get('role')
       });
+
+      const streamName = fullUser && fullUser.get('stream') ? fullUser.get('stream').name : null;
 
       res.status(201).json({
         success: true,
-        message: `Mentor registration successful for ${user.username}!`,
+        message: `Mentor registration successful for ${user.get('username')}!`,
         token,
-        stream: user.stream?.name || null
+        stream: streamName
       });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Mentor registration failed', error: err.message });
@@ -306,23 +306,20 @@ export class AuthController {
         return;
       }
 
-      const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+      const user = await User.findByPk(req.user!.id);
       if (!user) {
         res.status(404).json({ success: false, message: 'User not found.' });
         return;
       }
 
-      const isMatch = await AuthService.comparePassword(currentPassword, user.passwordHash);
+      const isMatch = await AuthService.comparePassword(currentPassword, user.get('passwordHash'));
       if (!isMatch) {
         res.status(400).json({ success: false, message: 'Incorrect current password.' });
         return;
       }
 
       const newHash = await AuthService.hashPassword(newPassword);
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash: newHash }
-      });
+      await user.update({ passwordHash: newHash });
 
       res.json({ success: true, message: 'Your password has been updated successfully.' });
     } catch (err: any) {
@@ -332,26 +329,31 @@ export class AuthController {
 
   static async getMe(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        include: {
-          stream: true,
-          studentProfile: {
-            include: {
-              stream: true,
-              subjectEnrollments: {
-                include: { subject: true }
+      const userInstance = await User.findByPk(req.user!.id, {
+        include: [
+          { model: Stream, as: 'stream' },
+          {
+            model: StudentProfile,
+            as: 'studentProfile',
+            include: [
+              { model: Stream, as: 'stream' },
+              {
+                model: StudentSubject,
+                as: 'subjectEnrollments',
+                include: [{ model: Subject, as: 'subject' }]
               }
-            }
+            ]
           },
-          assignedSubjects: true
-        }
+          { model: Subject, as: 'assignedSubjects' }
+        ]
       });
 
-      if (!user) {
+      if (!userInstance) {
         res.status(404).json({ success: false, message: 'User not found.' });
         return;
       }
+
+      const user = userInstance.get({ plain: true });
 
       res.json({
         success: true,

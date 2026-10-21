@@ -1,28 +1,24 @@
 {
   "name": "negi-tutorials-backend",
   "version": "1.0.0",
-  "description": "NEGI TUTORIALS REST API - Node.js, Express, TypeScript, Prisma & PostgreSQL",
+  "description": "NEGI TUTORIALS REST API - Node.js, Express, TypeScript, Sequelize ORM & MySQL",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push",
-    "prisma:migrate": "prisma migrate dev",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node src/seed.ts"
   },
   "keywords": [
     "negi-tutorials",
     "express",
     "typescript",
-    "prisma",
-    "postgresql"
+    "sequelize",
+    "mysql"
   ],
   "author": "Sachin Mehta",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -39,7 +35,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.2",
     "nodemon": "^3.1.9",
-    "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   }

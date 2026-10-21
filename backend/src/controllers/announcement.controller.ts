@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { Announcement, User, Op } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 export class AnnouncementController {
@@ -9,15 +9,19 @@ export class AnnouncementController {
       const where: any = { isActive: true };
 
       if (targetClass && targetClass !== 'All') {
-        where.targetClass = { in: ['All', targetClass] };
+        where.targetClass = { [Op.in]: ['All', targetClass] };
       }
 
-      const announcements = await prisma.announcement.findMany({
+      const announcements = await Announcement.findAll({
         where,
-        include: {
-          createdBy: { select: { username: true, role: true } }
-        },
-        orderBy: { createdAt: 'desc' }
+        include: [
+          {
+            model: User,
+            as: 'createdBy',
+            attributes: ['username', 'role']
+          }
+        ],
+        order: [['createdAt', 'DESC']]
       });
 
       res.json({ success: true, count: announcements.length, announcements });
@@ -34,14 +38,12 @@ export class AnnouncementController {
         return;
       }
 
-      const announcement = await prisma.announcement.create({
-        data: {
-          title: title.trim(),
-          content: content.trim(),
-          targetClass: targetClass || 'All',
-          priority: priority || 'Normal',
-          createdById: req.user?.id || null
-        }
+      const announcement = await Announcement.create({
+        title: title.trim(),
+        content: content.trim(),
+        targetClass: targetClass || 'All',
+        priority: priority || 'Normal',
+        createdById: req.user?.id || null
       });
 
       res.status(201).json({ success: true, message: 'Announcement published successfully.', announcement });
@@ -53,7 +55,7 @@ export class AnnouncementController {
   static async delete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const annId = Number(req.params.id);
-      await prisma.announcement.delete({ where: { id: annId } });
+      await Announcement.destroy({ where: { id: annId } });
       res.json({ success: true, message: 'Announcement deleted.' });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to delete announcement', error: err.message });

@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
-import { prisma } from '../config/prisma';
+import { Testimonial } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 export class TestimonialController {
   static async publicList(_req: Request, res: Response): Promise<void> {
     try {
-      const testimonials = await prisma.testimonial.findMany({
+      const testimonials = await Testimonial.findAll({
         where: { isFeatured: true },
-        orderBy: { id: 'desc' }
+        order: [['id', 'DESC']]
       });
 
       res.json({ success: true, count: testimonials.length, testimonials });
@@ -18,8 +18,8 @@ export class TestimonialController {
 
   static async list(_req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const testimonials = await prisma.testimonial.findMany({
-        orderBy: { id: 'desc' }
+      const testimonials = await Testimonial.findAll({
+        order: [['id', 'DESC']]
       });
 
       res.json({ success: true, count: testimonials.length, testimonials });
@@ -36,14 +36,12 @@ export class TestimonialController {
         return;
       }
 
-      const item = await prisma.testimonial.create({
-        data: {
-          studentName: studentName.trim(),
-          scoreBadge: scoreBadge ? scoreBadge.trim() : 'CBSE Excellence',
-          batchInfo: batchInfo ? batchInfo.trim() : 'Alumni Batch',
-          quote: quote.trim(),
-          isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : true
-        }
+      const item = await Testimonial.create({
+        studentName: studentName.trim(),
+        scoreBadge: scoreBadge ? scoreBadge.trim() : 'CBSE Excellence',
+        batchInfo: batchInfo ? batchInfo.trim() : 'Alumni Batch',
+        quote: quote.trim(),
+        isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : true
       });
 
       res.status(201).json({ success: true, message: 'Student result and testimonial published successfully.', testimonial: item });
@@ -57,7 +55,7 @@ export class TestimonialController {
       const id = Number(req.params.id);
       const { studentName, scoreBadge, batchInfo, quote, isFeatured } = req.body;
 
-      const target = await prisma.testimonial.findUnique({ where: { id } });
+      const target = await Testimonial.findByPk(id);
       if (!target) {
         res.status(404).json({ success: false, message: 'Testimonial not found.' });
         return;
@@ -70,12 +68,9 @@ export class TestimonialController {
       if (quote) dataToUpdate.quote = quote.trim();
       if (isFeatured !== undefined) dataToUpdate.isFeatured = Boolean(isFeatured);
 
-      const updated = await prisma.testimonial.update({
-        where: { id },
-        data: dataToUpdate
-      });
+      await target.update(dataToUpdate);
 
-      res.json({ success: true, message: 'Testimonial updated successfully.', testimonial: updated });
+      res.json({ success: true, message: 'Testimonial updated successfully.', testimonial: target });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to update testimonial', error: err.message });
     }
@@ -84,13 +79,13 @@ export class TestimonialController {
   static async delete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const id = Number(req.params.id);
-      const target = await prisma.testimonial.findUnique({ where: { id } });
+      const target = await Testimonial.findByPk(id);
       if (!target) {
         res.status(404).json({ success: false, message: 'Testimonial not found.' });
         return;
       }
 
-      await prisma.testimonial.delete({ where: { id } });
+      await target.destroy();
 
       res.json({ success: true, message: 'Testimonial deleted successfully.' });
     } catch (err: any) {

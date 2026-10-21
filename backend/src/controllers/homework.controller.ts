@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { Homework, Subject, User, StudentHomeworkStatus, StudentProfile, StudentSubject, Op } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 export class HomeworkController {
@@ -14,11 +14,12 @@ export class HomeworkController {
       }
 
       if (req.user?.role === 'mentor') {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        const mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
+
         if (subjectFilter) {
           if (!mentorSubjectIds.includes(subjectFilter)) {
             res.status(403).json({ success: false, message: 'Access Denied: You are not assigned to this subject.' });
@@ -26,22 +27,28 @@ export class HomeworkController {
           }
           where.subjectId = subjectFilter;
         } else {
-          where.subjectId = { in: mentorSubjectIds };
+          where.subjectId = { [Op.in]: mentorSubjectIds };
         }
       } else if (subjectFilter) {
         where.subjectId = subjectFilter;
       }
 
-      const homework = await prisma.homework.findMany({
+      const homework = await Homework.findAll({
         where,
-        include: {
-          subject: true,
-          assignedBy: { select: { username: true } },
-          statuses: {
-            include: { student: true }
+        include: [
+          { model: Subject, as: 'subject' },
+          {
+            model: User,
+            as: 'assignedBy',
+            attributes: ['username']
+          },
+          {
+            model: StudentHomeworkStatus,
+            as: 'statuses',
+            include: [{ model: StudentProfile, as: 'student' }]
           }
-        },
-        orderBy: { dueDate: 'desc' }
+        ],
+        order: [['dueDate', 'DESC']]
       });
 
       res.json({ success: true, count: homework.length, homework });
@@ -59,11 +66,12 @@ export class HomeworkController {
       }
 
       if (req.user?.role === 'mentor') {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        const mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
+
         if (!mentorSubjectIds.includes(Number(subjectId))) {
           res.status(403).json({
             success: false,
@@ -73,19 +81,20 @@ export class HomeworkController {
         }
       }
 
-      const hw = await prisma.homework.create({
-        data: {
-          title: title.trim(),
-          description: description.trim(),
-          targetClass: Number(targetClass),
-          subjectId: Number(subjectId),
-          dueDate: new Date(dueDate),
-          assignedById: req.user?.id || null
-        },
-        include: { subject: true }
+      const hw = await Homework.create({
+        title: title.trim(),
+        description: description.trim(),
+        targetClass: Number(targetClass),
+        subjectId: Number(subjectId),
+        dueDate: new Date(dueDate),
+        assignedById: req.user?.id || null
       });
 
-      res.status(201).json({ success: true, message: 'Homework assigned successfully.', homework: hw });
+      const fullHw = await Homework.findByPk(hw.get('id'), {
+        include: [{ model: Subject, as: 'subject' }]
+      });
+
+      res.status(201).json({ success: true, message: 'Homework assigned successfully.', homework: fullHw });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to assign homework', error: err.message });
     }
@@ -94,7 +103,7 @@ export class HomeworkController {
   static async delete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const hwId = Number(req.params.id);
-      await prisma.homework.delete({ where: { id: hwId } });
+      await Homework.destroy({ where: { id: hwId } });
       res.json({ success: true, message: 'Homework deleted.' });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to delete homework', error: err.message });
@@ -110,35 +119,37 @@ export class HomeworkController {
         return;
       }
 
-      const hw = await prisma.homework.findUnique({ where: { id: hwId } });
+      const hw = await Homework.findByPk(hwId);
       if (!hw) {
         res.status(404).json({ success: false, message: 'Homework assignment not found.' });
         return;
       }
 
-      const isLate = new Date() > new Date(hw.dueDate);
+      const isLate = new Date() > new Date(hw.get('dueDate'));
       const statusStr = isLate ? 'Late' : 'Completed';
 
-      const status = await prisma.studentHomeworkStatus.upsert({
+      let statusRecord = await StudentHomeworkStatus.findOne({
         where: {
-          uq_student_homework: {
-            homeworkId: hwId,
-            studentId: student.id
-          }
-        },
-        update: {
+          homeworkId: hwId,
+          studentId: student.id
+        }
+      });
+
+      if (statusRecord) {
+        await statusRecord.update({
           status: statusStr,
           completionDate: new Date()
-        },
-        create: {
+        });
+      } else {
+        statusRecord = await StudentHomeworkStatus.create({
           homeworkId: hwId,
           studentId: student.id,
           status: statusStr,
           completionDate: new Date()
-        }
-      });
+        });
+      }
 
-      res.json({ success: true, message: `Assignment marked as ${statusStr}!`, status });
+      res.json({ success: true, message: `Assignment marked as ${statusStr}!`, status: statusRecord });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to update assignment status', error: err.message });
     }
@@ -152,32 +163,38 @@ export class HomeworkController {
         return;
       }
 
-      const activeEnrollments = await prisma.studentSubject.findMany({
+      const activeEnrollments = await StudentSubject.findAll({
         where: { studentId: student.id, status: 'Active' },
-        select: { subjectId: true }
+        attributes: ['subjectId']
       });
-      const activeSubjIds = activeEnrollments.map(e => e.subjectId);
+      const activeSubjIds = activeEnrollments.map(e => e.get('subjectId'));
 
       const where: any = { targetClass: student.targetClass };
       if (activeSubjIds.length > 0) {
-        where.subjectId = { in: activeSubjIds };
+        where.subjectId = { [Op.in]: activeSubjIds };
       }
 
-      const homework = await prisma.homework.findMany({
+      const homework = await Homework.findAll({
         where,
-        include: {
-          subject: true,
-          statuses: {
-            where: { studentId: student.id }
+        include: [
+          { model: Subject, as: 'subject' },
+          {
+            model: StudentHomeworkStatus,
+            as: 'statuses',
+            where: { studentId: student.id },
+            required: false
           }
-        },
-        orderBy: { dueDate: 'desc' }
+        ],
+        order: [['dueDate', 'DESC']]
       });
 
-      const formatted = homework.map(h => ({
-        ...h,
-        myStatus: h.statuses[0] || null
-      }));
+      const formatted = homework.map(h => {
+        const plain = h.get({ plain: true });
+        return {
+          ...plain,
+          myStatus: plain.statuses && plain.statuses.length > 0 ? plain.statuses[0] : null
+        };
+      });
 
       res.json({ success: true, homework: formatted });
     } catch (err: any) {

@@ -1,46 +1,59 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { Subject, Stream, User, StudentSubject, Exam, Op } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 export class SubjectController {
   static async list(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const targetClass = req.query.class ? Number(req.query.class) : undefined;
-      const streamId = req.query.streamId ? Number(req.query.streamId) : undefined;
+      const streamId = req.query.streamId !== undefined && req.query.streamId !== '' ? Number(req.query.streamId) : undefined;
 
       const where: any = {};
       if (targetClass && [10, 11, 12].includes(targetClass)) {
         where.targetClass = targetClass;
       }
-      if (streamId !== undefined) {
+      if (streamId !== undefined && !isNaN(streamId)) {
         if (streamId === 0) {
           where.streamId = null;
         } else {
-          where.OR = [
+          where[Op.or] = [
             { streamId: streamId },
             { streamId: null }
           ];
         }
       }
 
-      const subjects = await prisma.subject.findMany({
+      const subjects = await Subject.findAll({
         where,
-        include: {
-          stream: true,
-          assignedMentors: {
-            select: { id: true, username: true, email: true }
+        include: [
+          { model: Stream, as: 'stream' },
+          {
+            model: User,
+            as: 'assignedMentors',
+            attributes: ['id', 'username', 'email'],
+            through: { attributes: [] }
           },
-          _count: {
-            select: { studentAssociations: true, exams: true }
-          }
-        },
-        orderBy: [
-          { targetClass: 'asc' },
-          { name: 'asc' }
+          { model: StudentSubject, as: 'studentAssociations', attributes: ['id'] },
+          { model: Exam, as: 'exams', attributes: ['id'] }
+        ],
+        order: [
+          ['targetClass', 'ASC'],
+          ['name', 'ASC']
         ]
       });
 
-      res.json({ success: true, count: subjects.length, subjects });
+      const formatted = subjects.map(s => {
+        const plain = s.get({ plain: true });
+        return {
+          ...plain,
+          _count: {
+            studentAssociations: plain.studentAssociations ? plain.studentAssociations.length : 0,
+            exams: plain.exams ? plain.exams.length : 0
+          }
+        };
+      });
+
+      res.json({ success: true, count: formatted.length, subjects: formatted });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to fetch subjects', error: err.message });
     }
@@ -54,7 +67,7 @@ export class SubjectController {
         return;
       }
 
-      const existing = await prisma.subject.findUnique({
+      const existing = await Subject.findOne({
         where: { code: code.trim().toUpperCase() }
       });
 
@@ -65,16 +78,14 @@ export class SubjectController {
 
       const chosenStreamId = streamId && streamId !== 0 ? Number(streamId) : null;
 
-      const subject = await prisma.subject.create({
-        data: {
-          name: name.trim(),
-          code: code.trim().toUpperCase(),
-          targetClass: Number(targetClass),
-          streamId: chosenStreamId,
-          monthlyFee: Number(monthlyFee) || 1500.0,
-          description: description?.trim() || null,
-          isActive: isActive !== undefined ? Boolean(isActive) : true
-        }
+      const subject = await Subject.create({
+        name: name.trim(),
+        code: code.trim().toUpperCase(),
+        targetClass: Number(targetClass),
+        streamId: chosenStreamId,
+        monthlyFee: Number(monthlyFee) || 1500.0,
+        description: description?.trim() || null,
+        isActive: isActive !== undefined ? Boolean(isActive) : true
       });
 
       res.status(201).json({ success: true, message: `Subject "${subject.name}" added.`, subject });
@@ -88,19 +99,22 @@ export class SubjectController {
       const subjectId = Number(req.params.id);
       const { name, code, targetClass, streamId, monthlyFee, description, isActive } = req.body;
 
+      const subject = await Subject.findByPk(subjectId);
+      if (!subject) {
+        res.status(404).json({ success: false, message: 'Subject not found.' });
+        return;
+      }
+
       const chosenStreamId = streamId !== undefined ? (streamId === 0 ? null : Number(streamId)) : undefined;
 
-      const subject = await prisma.subject.update({
-        where: { id: subjectId },
-        data: {
-          ...(name && { name: name.trim() }),
-          ...(code && { code: code.trim().toUpperCase() }),
-          ...(targetClass && { targetClass: Number(targetClass) }),
-          ...(chosenStreamId !== undefined && { streamId: chosenStreamId }),
-          ...(monthlyFee !== undefined && { monthlyFee: Number(monthlyFee) }),
-          ...(description !== undefined && { description: description?.trim() || null }),
-          ...(isActive !== undefined && { isActive: Boolean(isActive) })
-        }
+      await subject.update({
+        ...(name && { name: name.trim() }),
+        ...(code && { code: code.trim().toUpperCase() }),
+        ...(targetClass && { targetClass: Number(targetClass) }),
+        ...(chosenStreamId !== undefined && { streamId: chosenStreamId }),
+        ...(monthlyFee !== undefined && { monthlyFee: Number(monthlyFee) }),
+        ...(description !== undefined && { description: description?.trim() || null }),
+        ...(isActive !== undefined && { isActive: Boolean(isActive) })
       });
 
       res.json({ success: true, message: `Subject "${subject.name}" updated.`, subject });
@@ -112,7 +126,7 @@ export class SubjectController {
   static async delete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const subjectId = Number(req.params.id);
-      await prisma.subject.delete({ where: { id: subjectId } });
+      await Subject.destroy({ where: { id: subjectId } });
       res.json({ success: true, message: 'Subject deleted.' });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to delete subject', error: err.message });
@@ -121,16 +135,18 @@ export class SubjectController {
 
   static async getMySubjects(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        include: {
-          assignedSubjects: {
-            include: { stream: true }
+      const user = await User.findByPk(req.user!.id, {
+        include: [
+          {
+            model: Subject,
+            as: 'assignedSubjects',
+            include: [{ model: Stream, as: 'stream' }]
           }
-        }
+        ]
       });
 
-      res.json({ success: true, assignedSubjects: user?.assignedSubjects || [] });
+      const plainUser = user ? user.get({ plain: true }) : null;
+      res.json({ success: true, assignedSubjects: plainUser?.assignedSubjects || [] });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to fetch assigned subjects', error: err.message });
     }
@@ -144,14 +160,13 @@ export class SubjectController {
         return;
       }
 
-      await prisma.user.update({
-        where: { id: req.user!.id },
-        data: {
-          assignedSubjects: {
-            set: subjectIds.map((id: number) => ({ id: Number(id) }))
-          }
-        }
-      });
+      const user = await User.findByPk(req.user!.id);
+      if (!user) {
+        res.status(404).json({ success: false, message: 'User not found.' });
+        return;
+      }
+
+      await (user as any).setAssignedSubjects(subjectIds.map(Number));
 
       res.json({ success: true, message: `Teaching subjects updated (${subjectIds.length} subjects selected).` });
     } catch (err: any) {

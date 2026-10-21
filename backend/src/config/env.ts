@@ -16,8 +16,6 @@ export const config = {
   dbUser: process.env.DB_USER || 'root',
   dbPassword: process.env.DB_PASSWORD || 'root@123',
   
-  databaseUrl: process.env.DATABASE_URL || `mysql://${process.env.DB_USER || 'root'}:${encodeURIComponent(process.env.DB_PASSWORD || 'root@123')}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '3306'}/${process.env.DB_NAME || 'negi_erp'}`,
-  
   institute: {
     name: process.env.INSTITUTE_NAME || 'NEGI TUTORIALS',
     tagline: process.env.INSTITUTE_TAGLINE || 'Learn • Grow • Succeed',

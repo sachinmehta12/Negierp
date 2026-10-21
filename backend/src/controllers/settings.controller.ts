@@ -1,27 +1,25 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { InstituteSettings } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 
 export class SettingsController {
   static async getSettings(_req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      let settings = await prisma.instituteSettings.findFirst();
+      let settings = await InstituteSettings.findOne();
       if (!settings) {
-        settings = await prisma.instituteSettings.create({
-          data: {
-            name: 'NEGI TUTORIALS',
-            tagline: 'Learn • Grow • Succeed',
-            phone: '+91 98765 43210',
-            email: 'contact@negitutorials.com',
-            address: 'Plot 12, Sector 4, Main Road, New Delhi, India'
-          }
+        settings = await InstituteSettings.create({
+          name: 'NEGI TUTORIALS',
+          tagline: 'Learn • Grow • Succeed',
+          phone: '+91 98765 43210',
+          email: 'contact@negitutorials.com',
+          address: 'Plot 12, Sector 4, Main Road, New Delhi, India'
         });
       }
 
-      // Do not expose mail password in plain text response
+      const raw = settings.get({ plain: true });
       const safeSettings = {
-        ...settings,
-        mailPassword: settings.mailPassword ? '••••••••' : ''
+        ...raw,
+        mailPassword: raw.mailPassword ? '••••••••' : ''
       };
 
       res.json({ success: true, settings: safeSettings });
@@ -34,7 +32,7 @@ export class SettingsController {
     try {
       const { name, tagline, phone, email, address, mailServer, mailPort, mailUsername, mailPassword } = req.body;
 
-      let settings = await prisma.instituteSettings.findFirst();
+      let settings = await InstituteSettings.findOne();
       const dataToUpdate: any = {
         ...(name && { name: name.trim() }),
         ...(tagline && { tagline: tagline.trim() }),
@@ -51,15 +49,12 @@ export class SettingsController {
       }
 
       if (settings) {
-        settings = await prisma.instituteSettings.update({
-          where: { id: settings.id },
-          data: dataToUpdate
-        });
+        await settings.update(dataToUpdate);
       } else {
-        settings = await prisma.instituteSettings.create({ data: dataToUpdate });
+        settings = await InstituteSettings.create(dataToUpdate);
       }
 
-      res.json({ success: true, message: 'Institute settings updated successfully.', settings });
+      res.json({ success: true, message: 'Institute settings updated successfully.', settings: settings.get({ plain: true }) });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to update settings', error: err.message });
     }

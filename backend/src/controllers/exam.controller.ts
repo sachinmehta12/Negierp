@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { Exam, Subject, ExamMark, StudentProfile, User, StudentSubject, Op } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { ExamService } from '../services/exam.service';
 
@@ -15,11 +15,12 @@ export class ExamController {
       }
 
       if (req.user?.role === 'mentor') {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        const mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
+
         if (subjectFilter) {
           if (!mentorSubjectIds.includes(subjectFilter)) {
             res.status(403).json({ success: false, message: 'Access Denied: You are not assigned to this subject.' });
@@ -27,31 +28,33 @@ export class ExamController {
           }
           where.subjectId = subjectFilter;
         } else {
-          where.subjectId = { in: mentorSubjectIds };
+          where.subjectId = { [Op.in]: mentorSubjectIds };
         }
       } else if (subjectFilter) {
         where.subjectId = subjectFilter;
       }
 
-      const exams = await prisma.exam.findMany({
+      const exams = await Exam.findAll({
         where,
-        include: {
-          subject: true,
-          marks: true,
-          _count: { select: { marks: true } }
-        },
-        orderBy: { examDate: 'desc' }
+        include: [
+          { model: Subject, as: 'subject' },
+          { model: ExamMark, as: 'marks' }
+        ],
+        order: [['examDate', 'DESC']]
       });
 
       // Compute statistics for each exam
       const examsWithStats = exams.map(exam => {
-        const validMarks = exam.marks.filter(m => !m.isAbsent && m.marksObtained !== null).map(m => m.marksObtained as number);
-        const averageMarks = validMarks.length > 0 ? Math.round((validMarks.reduce((a, b) => a + b, 0) / validMarks.length) * 10) / 10 : 0.0;
+        const plain = exam.get({ plain: true });
+        const marks = plain.marks || [];
+        const validMarks = marks.filter((m: any) => !m.isAbsent && m.marksObtained !== null && m.marksObtained !== undefined).map((m: any) => Number(m.marksObtained));
+        const averageMarks = validMarks.length > 0 ? Math.round((validMarks.reduce((a: number, b: number) => a + b, 0) / validMarks.length) * 10) / 10 : 0.0;
         const highestMarks = validMarks.length > 0 ? Math.max(...validMarks) : 0.0;
         return {
-          ...exam,
+          ...plain,
           averageMarks,
-          highestMarks
+          highestMarks,
+          _count: { marks: marks.length }
         };
       });
 
@@ -69,21 +72,19 @@ export class ExamController {
         return;
       }
 
-      const exam = await prisma.exam.create({
-        data: {
-          title: title.trim(),
-          examType: examType || 'Unit Test',
-          targetClass: Number(targetClass),
-          subjectId: Number(subjectId),
-          examDate: new Date(examDate),
-          maxMarks: Number(maxMarks) || 100.0,
-          passingMarks: Number(passingMarks) || 33.0,
-          description: description?.trim() || null,
-          isPublished: isPublished !== undefined ? Boolean(isPublished) : true
-        }
+      const exam = await Exam.create({
+        title: title.trim(),
+        examType: examType || 'Unit Test',
+        targetClass: Number(targetClass),
+        subjectId: Number(subjectId),
+        examDate: new Date(examDate),
+        maxMarks: Number(maxMarks) || 100.0,
+        passingMarks: Number(passingMarks) || 33.0,
+        description: description?.trim() || null,
+        isPublished: isPublished !== undefined ? Boolean(isPublished) : true
       });
 
-      res.status(201).json({ success: true, message: `Exam "${exam.title}" created successfully.`, exam });
+      res.status(201).json({ success: true, message: `Exam "${exam.get('title')}" created successfully.`, exam });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to create exam', error: err.message });
     }
@@ -94,34 +95,37 @@ export class ExamController {
       const examId = Number(req.params.id);
       const { title, examType, targetClass, subjectId, examDate, maxMarks, passingMarks, description, isPublished } = req.body;
 
-      const exam = await prisma.exam.update({
-        where: { id: examId },
-        data: {
-          ...(title && { title: title.trim() }),
-          ...(examType && { examType }),
-          ...(targetClass && { targetClass: Number(targetClass) }),
-          ...(subjectId && { subjectId: Number(subjectId) }),
-          ...(examDate && { examDate: new Date(examDate) }),
-          ...(maxMarks !== undefined && { maxMarks: Number(maxMarks) }),
-          ...(passingMarks !== undefined && { passingMarks: Number(passingMarks) }),
-          ...(description !== undefined && { description: description?.trim() || null }),
-          ...(isPublished !== undefined && { isPublished: Boolean(isPublished) })
-        },
-        include: { marks: true }
+      const exam = await Exam.findByPk(examId, {
+        include: [{ model: ExamMark, as: 'marks' }]
+      });
+
+      if (!exam) {
+        res.status(404).json({ success: false, message: 'Exam not found.' });
+        return;
+      }
+
+      await exam.update({
+        ...(title && { title: title.trim() }),
+        ...(examType && { examType }),
+        ...(targetClass && { targetClass: Number(targetClass) }),
+        ...(subjectId && { subjectId: Number(subjectId) }),
+        ...(examDate && { examDate: new Date(examDate) }),
+        ...(maxMarks !== undefined && { maxMarks: Number(maxMarks) }),
+        ...(passingMarks !== undefined && { passingMarks: Number(passingMarks) }),
+        ...(description !== undefined && { description: description?.trim() || null }),
+        ...(isPublished !== undefined && { isPublished: Boolean(isPublished) })
       });
 
       // Recalculate grades if maxMarks changed
       if (maxMarks !== undefined) {
-        for (const m of exam.marks) {
-          const newGrade = ExamService.calculateGrade(m.marksObtained, exam.maxMarks, m.isAbsent);
-          await prisma.examMark.update({
-            where: { id: m.id },
-            data: { grade: newGrade }
-          });
+        const marks = exam.get('marks') || [];
+        for (const m of marks) {
+          const newGrade = ExamService.calculateGrade(m.marksObtained, exam.get('maxMarks'), m.isAbsent);
+          await m.update({ grade: newGrade });
         }
       }
 
-      res.json({ success: true, message: `Exam "${exam.title}" updated.`, exam });
+      res.json({ success: true, message: `Exam "${exam.get('title')}" updated.`, exam });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to update exam', error: err.message });
     }
@@ -130,7 +134,7 @@ export class ExamController {
   static async delete(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const examId = Number(req.params.id);
-      await prisma.exam.delete({ where: { id: examId } });
+      await Exam.destroy({ where: { id: examId } });
       res.json({ success: true, message: 'Exam deleted.' });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to delete exam', error: err.message });
@@ -140,9 +144,8 @@ export class ExamController {
   static async getMarksheet(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const examId = Number(req.params.id);
-      const exam = await prisma.exam.findUnique({
-        where: { id: examId },
-        include: { subject: true }
+      const exam = await Exam.findByPk(examId, {
+        include: [{ model: Subject, as: 'subject' }]
       });
 
       if (!exam) {
@@ -151,12 +154,13 @@ export class ExamController {
       }
 
       if (req.user?.role === 'mentor') {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        const mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
-        if (!mentorSubjectIds.includes(exam.subjectId)) {
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
+
+        if (!mentorSubjectIds.includes(exam.get('subjectId'))) {
           res.status(403).json({
             success: false,
             message: 'Access Denied: You are not assigned to manage marks for this subject.'
@@ -166,28 +170,40 @@ export class ExamController {
       }
 
       // ONLY fetch students actively enrolled in this specific subject
-      const students = await prisma.studentProfile.findMany({
+      const enrolledStudentAssociations = await StudentSubject.findAll({
         where: {
-          targetClass: exam.targetClass,
-          user: { isActive: true },
-          subjectEnrollments: {
-            some: { subjectId: exam.subjectId, status: 'Active' }
-          }
+          subjectId: exam.get('subjectId'),
+          status: 'Active'
         },
-        include: { user: true },
-        orderBy: { enrollmentNo: 'asc' }
+        attributes: ['studentId']
+      });
+      const enrolledStudentIds = enrolledStudentAssociations.map(sa => sa.get('studentId'));
+
+      const students = await StudentProfile.findAll({
+        where: {
+          targetClass: exam.get('targetClass'),
+          id: { [Op.in]: enrolledStudentIds }
+        },
+        include: [
+          {
+            model: User,
+            as: 'user',
+            where: { isActive: true }
+          }
+        ],
+        order: [['enrollmentNo', 'ASC']]
       });
 
-      const marks = await prisma.examMark.findMany({
+      const marks = await ExamMark.findAll({
         where: { examId }
       });
 
       const marksMap: Record<number, any> = {};
       for (const m of marks) {
-        marksMap[m.studentId] = m;
+        marksMap[m.get('studentId')] = m.get({ plain: true });
       }
 
-      res.json({ success: true, exam, students, marksMap });
+      res.json({ success: true, exam: exam.get({ plain: true }), students, marksMap });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to fetch marksheet', error: err.message });
     }
@@ -203,19 +219,20 @@ export class ExamController {
         return;
       }
 
-      const exam = await prisma.exam.findUnique({ where: { id: examId } });
+      const exam = await Exam.findByPk(examId);
       if (!exam) {
         res.status(404).json({ success: false, message: 'Exam not found.' });
         return;
       }
 
       if (req.user?.role === 'mentor') {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        const mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
-        if (!mentorSubjectIds.includes(exam.subjectId)) {
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
+
+        if (!mentorSubjectIds.includes(exam.get('subjectId'))) {
           res.status(403).json({
             success: false,
             message: 'Access Denied: You cannot record marks for a subject you do not teach.'
@@ -229,33 +246,32 @@ export class ExamController {
         const isAbsent = Boolean(entry.isAbsent);
         const marksObtained = isAbsent ? null : (entry.marksObtained !== '' && entry.marksObtained !== null && entry.marksObtained !== undefined ? Number(entry.marksObtained) : 0);
         const remarks = entry.remarks?.trim() || null;
-        const grade = ExamService.calculateGrade(marksObtained, exam.maxMarks, isAbsent);
+        const grade = ExamService.calculateGrade(marksObtained, exam.get('maxMarks'), isAbsent);
 
-        await prisma.examMark.upsert({
-          where: {
-            uq_exam_student: {
-              examId,
-              studentId
-            }
-          },
-          update: {
+        const existingMark = await ExamMark.findOne({
+          where: { examId, studentId }
+        });
+
+        if (existingMark) {
+          await existingMark.update({
             marksObtained,
             isAbsent,
             grade,
             remarks
-          },
-          create: {
+          });
+        } else {
+          await ExamMark.create({
             examId,
             studentId,
             marksObtained,
             isAbsent,
             grade,
             remarks
-          }
-        });
+          });
+        }
       }
 
-      res.json({ success: true, message: `Marks recorded successfully for ${exam.title}.` });
+      res.json({ success: true, message: `Marks recorded successfully for ${exam.get('title')}.` });
     } catch (err: any) {
       res.status(500).json({ success: false, message: 'Failed to record marks', error: err.message });
     }
@@ -269,27 +285,29 @@ export class ExamController {
         return;
       }
 
-      const marks = await prisma.examMark.findMany({
-        where: {
-          studentId: student.id,
-          exam: { isPublished: true }
-        },
-        include: {
-          exam: {
-            include: { subject: true }
+      const markRecords = await ExamMark.findAll({
+        where: { studentId: student.id },
+        include: [
+          {
+            model: Exam,
+            as: 'exam',
+            where: { isPublished: true },
+            include: [{ model: Subject, as: 'subject' }]
           }
-        },
-        orderBy: {
-          exam: { examDate: 'desc' }
-        }
+        ],
+        order: [
+          [{ model: Exam, as: 'exam' }, 'examDate', 'DESC']
+        ]
       });
 
+      const marks = markRecords.map(m => m.get({ plain: true }));
+
       const validPcts = marks
-        .filter(m => !m.isAbsent && m.marksObtained !== null && m.exam.maxMarks > 0)
-        .map(m => ((m.marksObtained as number) / m.exam.maxMarks) * 100);
+        .filter((m: any) => !m.isAbsent && m.marksObtained !== null && m.exam && m.exam.maxMarks > 0)
+        .map((m: any) => (Number(m.marksObtained) / m.exam.maxMarks) * 100);
 
       const overallAverage = validPcts.length > 0
-        ? Math.round((validPcts.reduce((a, b) => a + b, 0) / validPcts.length) * 10) / 10
+        ? Math.round((validPcts.reduce((a: number, b: number) => a + b, 0) / validPcts.length) * 10) / 10
         : 0.0;
 
       res.json({

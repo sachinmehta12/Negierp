@@ -1,4 +1,4 @@
-import { prisma } from '../config/prisma';
+import { StudentProfile, User, Stream, FeePayment, ExamMark, Exam, Subject, Attendance } from '../models';
 
 export class ReportService {
   private static escapeCsvCell(val: any): string {
@@ -11,16 +11,18 @@ export class ReportService {
   }
 
   static async generateStudentsCsv(): Promise<string> {
-    const students = await prisma.studentProfile.findMany({
-      include: {
-        user: true,
-        stream: true
-      },
-      orderBy: [
-        { targetClass: 'asc' },
-        { enrollmentNo: 'asc' }
+    const studentRecords = await StudentProfile.findAll({
+      include: [
+        { model: User, as: 'user' },
+        { model: Stream, as: 'stream' }
+      ],
+      order: [
+        ['targetClass', 'ASC'],
+        ['enrollmentNo', 'ASC']
       ]
     });
+
+    const students = studentRecords.map(s => s.get({ plain: true }));
 
     const headers = [
       'Enrollment No', 'First Name', 'Last Name', 'Class', 'Stream',
@@ -33,11 +35,11 @@ export class ReportService {
       s.lastName,
       s.targetClass,
       s.stream ? s.stream.name : 'General',
-      s.user.email,
+      s.user ? s.user.email : '',
       s.contactNumber || '',
       s.parentName || '',
       s.parentContact || '',
-      s.user.isActive ? 'Active' : 'Archived'
+      s.user && s.user.isActive ? 'Active' : 'Archived'
     ]);
 
     return [
@@ -47,12 +49,14 @@ export class ReportService {
   }
 
   static async generateFeesCsv(): Promise<string> {
-    const payments = await prisma.feePayment.findMany({
-      include: {
-        student: true
-      },
-      orderBy: { paymentDate: 'desc' }
+    const paymentRecords = await FeePayment.findAll({
+      include: [
+        { model: StudentProfile, as: 'student' }
+      ],
+      order: [['paymentDate', 'DESC']]
     });
+
+    const payments = paymentRecords.map(p => p.get({ plain: true }));
 
     const headers = [
       'Receipt No', 'Enrollment No', 'Student Name', 'Class', 'Amount Paid',
@@ -61,11 +65,11 @@ export class ReportService {
 
     const rows = payments.map(p => [
       p.receiptNo,
-      p.student.enrollmentNo,
-      `${p.student.firstName} ${p.student.lastName}`,
-      p.student.targetClass,
+      p.student ? p.student.enrollmentNo : '',
+      p.student ? `${p.student.firstName} ${p.student.lastName}` : '',
+      p.student ? p.student.targetClass : '',
       p.amount,
-      p.paymentDate.toISOString().split('T')[0],
+      p.paymentDate ? new Date(p.paymentDate).toISOString().split('T')[0] : '',
       p.paymentMode,
       p.referenceNo || '',
       p.remarks || '',
@@ -79,17 +83,21 @@ export class ReportService {
   }
 
   static async generateMarksCsv(): Promise<string> {
-    const marks = await prisma.examMark.findMany({
-      include: {
-        exam: {
-          include: { subject: true }
+    const markRecords = await ExamMark.findAll({
+      include: [
+        {
+          model: Exam,
+          as: 'exam',
+          include: [{ model: Subject, as: 'subject' }]
         },
-        student: true
-      },
-      orderBy: {
-        exam: { examDate: 'desc' }
-      }
+        { model: StudentProfile, as: 'student' }
+      ],
+      order: [
+        [{ model: Exam, as: 'exam' }, 'examDate', 'DESC']
+      ]
     });
+
+    const marks = markRecords.map(m => m.get({ plain: true }));
 
     const headers = [
       'Exam Title', 'Exam Type', 'Class', 'Subject', 'Enrollment No',
@@ -97,14 +105,14 @@ export class ReportService {
     ];
 
     const rows = marks.map(m => [
-      m.exam.title,
-      m.exam.examType,
-      m.exam.targetClass,
-      m.exam.subject.name,
-      m.student.enrollmentNo,
-      `${m.student.firstName} ${m.student.lastName}`,
-      m.isAbsent ? 'Absent' : (m.marksObtained !== null ? m.marksObtained : 'N/A'),
-      m.exam.maxMarks,
+      m.exam ? m.exam.title : '',
+      m.exam ? m.exam.examType : '',
+      m.exam ? m.exam.targetClass : '',
+      m.exam && m.exam.subject ? m.exam.subject.name : '',
+      m.student ? m.student.enrollmentNo : '',
+      m.student ? `${m.student.firstName} ${m.student.lastName}` : '',
+      m.isAbsent ? 'Absent' : (m.marksObtained !== null && m.marksObtained !== undefined ? m.marksObtained : 'N/A'),
+      m.exam ? m.exam.maxMarks : '',
       m.grade || '',
       m.remarks || ''
     ]);
@@ -116,22 +124,24 @@ export class ReportService {
   }
 
   static async generateAttendanceCsv(): Promise<string> {
-    const records = await prisma.attendance.findMany({
-      include: {
-        student: true,
-        subject: true
-      },
-      orderBy: { date: 'desc' }
+    const recordsData = await Attendance.findAll({
+      include: [
+        { model: StudentProfile, as: 'student' },
+        { model: Subject, as: 'subject' }
+      ],
+      order: [['date', 'DESC']]
     });
+
+    const records = recordsData.map(r => r.get({ plain: true }));
 
     const headers = [
       'Date', 'Enrollment No', 'Student Name', 'Class', 'Subject', 'Status', 'Remarks'
     ];
 
     const rows = records.map(r => [
-      r.date.toISOString().split('T')[0],
-      r.student.enrollmentNo,
-      `${r.student.firstName} ${r.student.lastName}`,
+      r.date ? new Date(r.date).toISOString().split('T')[0] : '',
+      r.student ? r.student.enrollmentNo : '',
+      r.student ? `${r.student.firstName} ${r.student.lastName}` : '',
       r.targetClass,
       r.subject ? r.subject.name : 'General Institute',
       r.status,

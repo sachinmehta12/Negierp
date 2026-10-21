@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { prisma } from '../config/prisma';
+import { Attendance, StudentProfile, User, Subject, StudentSubject, Op } from '../models';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AttendanceService } from '../services/attendance.service';
 
@@ -13,13 +13,13 @@ export class AttendanceController {
       const dateObj = new Date(dateStr);
       dateObj.setUTCHours(0, 0, 0, 0);
 
-      let mentorSubjectIds: number[] | null = null;
+      let mentorSubjectIds: number[] = [];
       if (req.user?.role === 'mentor') {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
 
         if (subjectId && !mentorSubjectIds.includes(subjectId)) {
           res.status(403).json({
@@ -30,36 +30,50 @@ export class AttendanceController {
         }
       }
 
-      // Fetch students in this class actively enrolled in this subject (or mentor's subjects)
-      const studentWhere: any = {
-        targetClass,
-        user: { isActive: true }
-      };
-
+      // Find student IDs actively enrolled in this subject (or mentor's subjects)
+      let studentIdFilter: number[] | null = null;
       if (subjectId && subjectId !== 0) {
-        studentWhere.subjectEnrollments = {
-          some: { subjectId, status: 'Active' }
-        };
-      } else if (mentorSubjectIds && mentorSubjectIds.length > 0) {
-        studentWhere.subjectEnrollments = {
-          some: { subjectId: { in: mentorSubjectIds }, status: 'Active' }
-        };
+        const enrollments = await StudentSubject.findAll({
+          where: { subjectId, status: 'Active' },
+          attributes: ['studentId']
+        });
+        studentIdFilter = enrollments.map(e => e.get('studentId'));
+      } else if (mentorSubjectIds.length > 0) {
+        const enrollments = await StudentSubject.findAll({
+          where: { subjectId: { [Op.in]: mentorSubjectIds }, status: 'Active' },
+          attributes: ['studentId']
+        });
+        studentIdFilter = enrollments.map(e => e.get('studentId'));
       }
 
-      const students = await prisma.studentProfile.findMany({
+      const studentWhere: any = {
+        targetClass
+      };
+      if (studentIdFilter !== null) {
+        studentWhere.id = { [Op.in]: studentIdFilter };
+      }
+
+      const students = await StudentProfile.findAll({
         where: studentWhere,
-        include: {
-          user: true,
-          subjectEnrollments: {
+        include: [
+          {
+            model: User,
+            as: 'user',
+            where: { isActive: true }
+          },
+          {
+            model: StudentSubject,
+            as: 'subjectEnrollments',
             where: { status: 'Active' },
-            include: { subject: true }
+            required: false,
+            include: [{ model: Subject, as: 'subject' }]
           }
-        },
-        orderBy: { enrollmentNo: 'asc' }
+        ],
+        order: [['enrollmentNo', 'ASC']]
       });
 
       // Existing records for this date/class/subject
-      const records = await prisma.attendance.findMany({
+      const records = await Attendance.findAll({
         where: {
           targetClass,
           date: dateObj,
@@ -69,7 +83,7 @@ export class AttendanceController {
 
       const recordsMap: Record<number, any> = {};
       for (const r of records) {
-        recordsMap[r.studentId] = r;
+        recordsMap[r.get('studentId')] = r.get({ plain: true });
       }
 
       res.json({
@@ -98,11 +112,12 @@ export class AttendanceController {
       const chosenSubjectId = subjectId && subjectId !== 0 ? Number(subjectId) : null;
 
       if (req.user?.role === 'mentor' && chosenSubjectId) {
-        const mentor = await prisma.user.findUnique({
-          where: { id: req.user.id },
-          include: { assignedSubjects: { select: { id: true } } }
+        const mentor = await User.findByPk(req.user.id, {
+          include: [{ model: Subject, as: 'assignedSubjects', attributes: ['id'] }]
         });
-        const mentorSubjectIds = mentor?.assignedSubjects.map(s => s.id) || [];
+        const mentorSubjects = mentor ? mentor.get('assignedSubjects') || [] : [];
+        const mentorSubjectIds = mentorSubjects.map((s: any) => s.id);
+
         if (!mentorSubjectIds.includes(chosenSubjectId)) {
           res.status(403).json({
             success: false,
@@ -119,20 +134,22 @@ export class AttendanceController {
         const status = entry.status || 'Present';
         const remarks = entry.remarks?.trim() || null;
 
-        await prisma.attendance.upsert({
+        const existingRecord = await Attendance.findOne({
           where: {
-            uq_student_date_subject: {
-              studentId,
-              date: dateObj,
-              subjectId: chosenSubjectId as any
-            }
-          },
-          update: {
+            studentId,
+            date: dateObj,
+            subjectId: chosenSubjectId
+          }
+        });
+
+        if (existingRecord) {
+          await existingRecord.update({
             status,
             remarks,
             markedById
-          },
-          create: {
+          });
+        } else {
+          await Attendance.create({
             studentId,
             date: dateObj,
             targetClass: Number(targetClass),
@@ -140,8 +157,8 @@ export class AttendanceController {
             status,
             remarks,
             markedById
-          }
-        });
+          });
+        }
       }
 
       res.json({
@@ -161,16 +178,17 @@ export class AttendanceController {
         return;
       }
 
-      const records = await prisma.attendance.findMany({
+      const recordsData = await Attendance.findAll({
         where: { studentId: student.id },
-        include: { subject: true },
-        orderBy: { date: 'desc' }
+        include: [{ model: Subject, as: 'subject' }],
+        order: [['date', 'DESC']]
       });
 
+      const records = recordsData.map(r => r.get({ plain: true }));
       const percentage = AttendanceService.calculatePercentage(records);
       const totalClasses = records.length;
-      const presentCount = records.filter(r => r.status === 'Present' || r.status === 'Late').length;
-      const absentCount = records.filter(r => r.status === 'Absent').length;
+      const presentCount = records.filter((r: any) => r.status === 'Present' || r.status === 'Late').length;
+      const absentCount = records.filter((r: any) => r.status === 'Absent').length;
 
       res.json({
         success: true,
